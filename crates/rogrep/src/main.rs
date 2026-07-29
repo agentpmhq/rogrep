@@ -18,6 +18,9 @@ enum Command {
     /// Search across all conversations (also the bare default: `rogrep QUERY`).
     #[command(alias = "s")]
     Search(cmd::search::SearchArgs),
+    /// Exchange-granularity search/listing (user prompt → all agent actions).
+    #[command(name = "x", alias = "exchanges")]
+    X(cmd::exchanges::ExchangesArgs),
     /// Conjunction find inside one conversation (three-tier results).
     Find(cmd::find::FindArgs),
     /// Show a conversation, exchange (rg_…#eN), or turn window.
@@ -41,6 +44,8 @@ enum Command {
     Parse(cmd::parse::ParseArgs),
     /// Report discovery roots, parse health, and index status.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Install/inspect the bundled agent skill.
+    Skill(cmd::skill::SkillArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -52,6 +57,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Search(args)) => cmd::search::run(args),
+        Some(Command::X(args)) => cmd::exchanges::run(args),
         Some(Command::Find(args)) => cmd::find::run(args),
         Some(Command::Show(args)) => cmd::show::run(args),
         Some(Command::Git(args)) => cmd::git::run(args),
@@ -65,6 +71,7 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Stats(args)) => cmd::stats::run(args),
         Some(Command::Parse(args)) => cmd::parse::run(args),
         Some(Command::Doctor(args)) => cmd::doctor::run(args),
+        Some(Command::Skill(args)) => cmd::skill::run(args),
         None => {
             if cli.query.is_empty() {
                 println!("rogrep — try `rogrep QUERY`, `rogrep ls`, `rogrep stats`, or `rogrep --help`");

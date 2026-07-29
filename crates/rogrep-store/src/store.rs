@@ -108,6 +108,11 @@ impl Store {
         Ok(())
     }
 
+    /// Raw connection access for read-only query composition (CLI reports).
+    pub fn raw(&self) -> &Connection {
+        &self.conn
+    }
+
     pub fn meta_get(&self, key: &str) -> Result<Option<String>> {
         Ok(self
             .conn

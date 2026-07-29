@@ -1389,6 +1389,7 @@ dependencies = [
  "rogrep-parsers",
  "rogrep-store",
  "rogrep-tooltree",
+ "rusqlite",
  "serde",
  "serde_json",
  "tempfile",

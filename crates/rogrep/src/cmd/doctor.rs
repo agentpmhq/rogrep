@@ -29,7 +29,23 @@ pub fn run(_args: DoctorArgs) -> anyhow::Result<()> {
         let status = if root.is_dir() { "found" } else { "absent" };
         println!("  [{status:>6}] {:<14} {}", "extra", root.display());
     }
+    for agent in ["hermes", "opencode"] {
+        let db = match agent {
+            "hermes" => home.join(".hermes/state.db"),
+            _ => home.join(".local/share/opencode/opencode.db"),
+        };
+        let status = if db.is_file() { "found" } else { "absent" };
+        println!("  [{status:>6}] {:<14} {} (via spool)", agent, db.display());
+    }
     println!();
+    let mut extra = extra;
+    let layout = paths::DataLayout::default_layout();
+    for agent in ["hermes", "opencode"] {
+        let dir = layout.spool_dir(agent);
+        if dir.is_dir() {
+            extra.push(dir);
+        }
+    }
     let files = rogrep_parsers::discover_files(&home, &extra);
     let total_bytes: u64 = files.iter().map(|f| f.size).sum();
     println!(

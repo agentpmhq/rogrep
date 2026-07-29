@@ -1,4 +1,5 @@
 pub mod doctor;
+pub mod exchanges;
 pub mod find;
 pub mod git;
 pub mod index;
@@ -6,6 +7,7 @@ pub mod ls;
 pub mod parse;
 pub mod search;
 pub mod show;
+pub mod skill;
 pub mod stats;
 pub mod sync;
 pub mod trajectory;
