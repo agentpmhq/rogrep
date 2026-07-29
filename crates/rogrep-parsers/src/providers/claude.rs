@@ -17,7 +17,7 @@ use rogrep_model::{
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
-pub const CLAUDE_PARSER_VERSION: u32 = 1;
+pub const CLAUDE_PARSER_VERSION: u32 = 2;
 
 pub struct ClaudeProvider;
 

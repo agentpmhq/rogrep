@@ -1,6 +1,6 @@
 [package]
 name = "rogrep-index"
-description = "rogrep index"
+description = "Tantivy search index and query grammar for rogrep"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,7 +8,14 @@ repository.workspace = true
 
 [dependencies]
 rogrep-model.workspace = true
+rogrep-parsers.workspace = true
+rogrep-tooltree.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tantivy.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+pretty_assertions.workspace = true

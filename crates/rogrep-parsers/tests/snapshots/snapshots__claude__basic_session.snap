@@ -86,7 +86,7 @@ turns:
       direction: use
       name: Bash
       pair_id: toolu_01
-      status: unknown
+      status: failed
       input_fields:
         command: cargo test -p reader
         description: Run reader tests

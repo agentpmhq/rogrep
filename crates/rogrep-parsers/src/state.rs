@@ -54,6 +54,9 @@ pub struct ParseState {
     /// Turn index the next emitted turn will get; also the tail-refresh
     /// watermark (stored turns >= this index get replaced).
     pub next_turn_index: u32,
+    /// Number of exchanges wholly before the watermark — the ordinal base
+    /// for exchanges built over the tail.
+    pub frozen_exchange_count: u32,
     pub frozen: FrozenSummary,
 
     // Conversation-level signals as of the watermark.

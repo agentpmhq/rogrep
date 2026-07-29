@@ -20,7 +20,7 @@ use rogrep_model::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const CODEX_PARSER_VERSION: u32 = 1;
+pub const CODEX_PARSER_VERSION: u32 = 2;
 
 pub struct CodexProvider;
 

@@ -62,7 +62,7 @@ turns:
       direction: use
       name: exec_command
       pair_id: call_1
-      status: unknown
+      status: failed
       input_fields:
         cmd: rg -n retry src/net.rs
         workdir: /home/u/src/proj

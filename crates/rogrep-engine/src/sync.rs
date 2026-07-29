@@ -127,14 +127,21 @@ pub fn sync(
     }
 
     // Changed files, most recent first so fresh conversations land early.
+    // A parser-version bump also invalidates the checkpoint (re-derive that
+    // provider's conversations even though the file bytes are unchanged).
     let mut changed: Vec<&DiscoveredFile> = files
         .iter()
         .filter(|f| {
             if options.full {
                 return true;
             }
+            let current_version = provider_for_kind(f.kind).map(|p| p.parser_version());
             match checkpoints.get(&f.path.to_string_lossy().to_string()) {
-                Some(cp) => cp.size != f.size || cp.mtime_ns != f.mtime_ns,
+                Some(cp) => {
+                    cp.size != f.size
+                        || cp.mtime_ns != f.mtime_ns
+                        || Some(cp.state.parser_version) != current_version
+                }
                 None => true,
             }
         })

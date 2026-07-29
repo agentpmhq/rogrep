@@ -14,6 +14,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Search across all conversations (also the bare default: `rogrep QUERY`).
+    #[command(alias = "s")]
+    Search(cmd::search::SearchArgs),
+    /// Conjunction find inside one conversation (three-tier results).
+    Find(cmd::find::FindArgs),
+    /// Show a conversation, exchange (rg_…#eN), or turn window.
+    Show(cmd::show::ShowArgs),
     /// Refresh the local index (runs automatically before other commands).
     Sync(cmd::sync::SyncArgs),
     /// List recent conversations.
@@ -34,6 +41,9 @@ fn main() -> anyhow::Result<()> {
     }
     let cli = Cli::parse();
     match cli.command {
+        Some(Command::Search(args)) => cmd::search::run(args),
+        Some(Command::Find(args)) => cmd::find::run(args),
+        Some(Command::Show(args)) => cmd::show::run(args),
         Some(Command::Sync(args)) => cmd::sync::run(args),
         Some(Command::Ls(args)) => cmd::ls::run(args),
         Some(Command::Stats(args)) => cmd::stats::run(args),
@@ -41,10 +51,18 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Doctor(args)) => cmd::doctor::run(args),
         None => {
             if cli.query.is_empty() {
-                println!("rogrep — try `rogrep sync`, `rogrep ls`, `rogrep stats`, or `rogrep --help`");
+                println!("rogrep — try `rogrep QUERY`, `rogrep ls`, `rogrep stats`, or `rogrep --help`");
                 Ok(())
             } else {
-                anyhow::bail!("search lands in M3; try `rogrep ls` or `rogrep stats` for now");
+                cmd::search::run(cmd::search::SearchArgs {
+                    query: cli.query,
+                    limit: 20,
+                    project: None,
+                    cwd: None,
+                    since: None,
+                    sort: "relevance".into(),
+                    json: false,
+                })
             }
         }
     }

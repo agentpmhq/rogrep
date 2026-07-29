@@ -112,6 +112,9 @@ pub struct DriverOutput {
     /// Turn index at which `conversation.turns` begins — stored turns >= this
     /// must be replaced by them.
     pub replace_from: u32,
+    /// Ordinal base for exchanges built over `conversation.turns` (the count
+    /// of exchanges wholly before `replace_from`).
+    pub exchange_base: u32,
     /// Checkpoint for the next run.
     pub state: ParseState,
 }
@@ -299,6 +302,32 @@ fn run<R: io::BufRead>(
             if is_real_user_prompt(&turn) {
                 record_opens_exchange = true;
             }
+            // Stamp a tool output's status back onto its paired call within
+            // the open exchange (barrier-respecting, so incremental parses
+            // behave identically to full parses).
+            if let Some(rogrep_model::ToolInfo {
+                direction: Some(rogrep_model::ToolDirection::Output),
+                pair_id: Some(pair),
+                status,
+                ..
+            }) = &turn.tool
+            {
+                if *status != rogrep_model::ToolStatus::Unknown {
+                    let (pair, status) = (pair.clone(), *status);
+                    for prev in turns[barrier..].iter_mut().rev() {
+                        if let Some(info) = &mut prev.tool {
+                            if info.direction == Some(rogrep_model::ToolDirection::Use)
+                                && info.pair_id.as_deref() == Some(pair.as_str())
+                            {
+                                if info.status == rogrep_model::ToolStatus::Unknown {
+                                    info.status = status;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
             turns.push(turn);
         }
 
@@ -312,6 +341,10 @@ fn run<R: io::BufRead>(
                 malformed_lines: s.frozen.malformed_lines,
                 ..frozen
             };
+            // Tail starts at an exchange boundary, so tail-local exchanges
+            // before the new watermark are all wholly frozen.
+            s.frozen_exchange_count = seed.frozen_exchange_count
+                + rogrep_model::build_exchanges(&turns[..new_barrier]).len() as u32;
             snapshot = Some(Snapshot {
                 state: s,
                 tail_window: pre_window_tail,
@@ -374,6 +407,7 @@ fn run<R: io::BufRead>(
     Ok(DriverOutput {
         conversation,
         replace_from,
+        exchange_base: seed.frozen_exchange_count,
         state: out_state,
     })
 }
