@@ -1,6 +1,6 @@
 [package]
 name = "rogrep-store"
-description = "rogrep store"
+description = "SQLite metadata/stats store for rogrep"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,7 +8,14 @@ repository.workspace = true
 
 [dependencies]
 rogrep-model.workspace = true
+rogrep-parsers.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+jiff.workspace = true
+rusqlite.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+pretty_assertions.workspace = true

@@ -19,7 +19,7 @@ pub use exchange::{build_exchanges, is_real_user_prompt, Exchange, ExchangeSigna
 pub use ids::ConversationId;
 pub use special::{AttachmentKind, SpecialTurn};
 pub use tokens::TokenCounts;
-pub use turn::{Role, SourceSpan, ToolDirection, ToolInfo, ToolStatus, Turn};
+pub use turn::{is_injected_context_text, is_visible_turn, Role, SourceSpan, ToolDirection, ToolInfo, ToolStatus, Turn};
 
 /// Timestamps are unix milliseconds UTC throughout the model and the store.
 pub type UnixMillis = i64;

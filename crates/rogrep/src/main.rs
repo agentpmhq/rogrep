@@ -14,6 +14,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Refresh the local index (runs automatically before other commands).
+    Sync(cmd::sync::SyncArgs),
+    /// List recent conversations.
+    Ls(cmd::ls::LsArgs),
+    /// Deterministic usage statistics and reports.
+    Stats(cmd::stats::StatsArgs),
     /// Parse one rollout file and print the normalized conversation (debug).
     Parse(cmd::parse::ParseArgs),
     /// Report discovery roots, parse health, and index status.
@@ -28,14 +34,17 @@ fn main() -> anyhow::Result<()> {
     }
     let cli = Cli::parse();
     match cli.command {
+        Some(Command::Sync(args)) => cmd::sync::run(args),
+        Some(Command::Ls(args)) => cmd::ls::run(args),
+        Some(Command::Stats(args)) => cmd::stats::run(args),
         Some(Command::Parse(args)) => cmd::parse::run(args),
         Some(Command::Doctor(args)) => cmd::doctor::run(args),
         None => {
             if cli.query.is_empty() {
-                println!("rogrep — try `rogrep doctor`, `rogrep parse FILE`, or `rogrep --help`");
+                println!("rogrep — try `rogrep sync`, `rogrep ls`, `rogrep stats`, or `rogrep --help`");
                 Ok(())
             } else {
-                anyhow::bail!("search is not wired up yet (coming in M3)");
+                anyhow::bail!("search lands in M3; try `rogrep ls` or `rogrep stats` for now");
             }
         }
     }
