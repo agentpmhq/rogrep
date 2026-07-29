@@ -134,18 +134,25 @@ fn run_inner(store: &Store, args: ShowArgs) -> Result<()> {
         return Ok(());
     }
 
+    let paint = crate::color::Painter::auto();
     println!(
         "{}  [{}] {}",
-        row.id,
-        row.provider,
-        conv.display_title()
+        paint.paint(crate::color::CYAN, row.id.as_str()),
+        paint.provider(&row.provider),
+        paint.paint(crate::color::BOLD, &conv.display_title())
     );
     println!(
-        "project {}  turns {}  exchanges {}  source {}",
-        row.normalized_project,
-        conv.turns.len(),
-        exchanges.len(),
-        row.source_path
+        "{}",
+        paint.paint(
+            crate::color::DIM,
+            &format!(
+                "project {}  turns {}  exchanges {}  source {}",
+                row.normalized_project,
+                conv.turns.len(),
+                exchanges.len(),
+                row.source_path
+            )
+        )
     );
     println!();
     let mut last_exchange: Option<u32> = None;
@@ -157,19 +164,19 @@ fn run_inner(store: &Store, args: ShowArgs) -> Result<()> {
         if ex != last_exchange {
             if let Some(e) = ex.and_then(|o| exchanges.get(o as usize)) {
                 println!(
-                    "── #e{} ── {}",
-                    e.ordinal + 1,
-                    e.user_preview.chars().take(90).collect::<String>()
+                    "{} {}",
+                    paint.paint(crate::color::BOLD_YELLOW, &format!("── #e{} ──", e.ordinal + 1)),
+                    paint.paint(crate::color::YELLOW, &e.user_preview.chars().take(90).collect::<String>())
                 );
             }
             last_exchange = ex;
         }
-        let role = match t.role {
-            Role::User => "user",
-            Role::Assistant => "assistant",
-            Role::Tool => "tool",
-            Role::System => "system",
-            Role::Event => "event",
+        let (role, role_color) = match t.role {
+            Role::User => ("user", crate::color::BOLD_GREEN),
+            Role::Assistant => ("assistant", crate::color::BOLD_BLUE),
+            Role::Tool => ("tool", crate::color::MAGENTA),
+            Role::System => ("system", crate::color::DIM),
+            Role::Event => ("event", crate::color::DIM),
         };
         let speaker = if t.speaker.is_empty() || t.speaker == role {
             role.to_string()
@@ -177,16 +184,27 @@ fn run_inner(store: &Store, args: ShowArgs) -> Result<()> {
             format!("{role}/{}", t.speaker)
         };
         let mut text = t.text.clone();
+        let mut truncated = false;
         if !args.raw && text.len() > MAX_TURN_TEXT_BYTES {
             let mut cut = MAX_TURN_TEXT_BYTES;
             while cut > 0 && !text.is_char_boundary(cut) {
                 cut -= 1;
             }
             text.truncate(cut);
-            text.push_str("\n    [truncated; use --json or --raw for exact turn text]");
+            truncated = true;
         }
-        let indented = text.replace('\n', "\n    ");
-        println!("[{:>4}] {speaker}: {indented}", t.turn_index);
+        let mut indented = text.replace('\n', "\n    ");
+        if truncated {
+            indented.push_str(&format!(
+                "\n    {}",
+                paint.paint(crate::color::DIM, "[truncated; use --json or --raw for exact turn text]")
+            ));
+        }
+        println!(
+            "{} {} {indented}",
+            paint.paint(crate::color::DIM, &format!("[{:>4}]", t.turn_index)),
+            paint.paint(role_color, &format!("{speaker}:")),
+        );
     }
     Ok(())
 }

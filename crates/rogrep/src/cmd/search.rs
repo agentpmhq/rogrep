@@ -100,6 +100,7 @@ pub fn run(args: SearchArgs) -> Result<()> {
         return Ok(());
     }
 
+    let paint = crate::color::Painter::auto();
     if !parsed.facets.is_empty() || !parsed.phrases.is_empty() {
         eprintln!(
             "parsed: terms={:?} phrases={:?} facets={:?}",
@@ -132,18 +133,34 @@ pub fn run(args: SearchArgs) -> Result<()> {
             })
             .unwrap_or_else(|| "?".into());
         println!(
-            "{}  [{}] {}  ({} hits, {})",
-            m.conversation_id,
-            provider,
-            title.chars().take(64).collect::<String>(),
-            m.match_count,
-            when
+            "{}  [{}] {}  {}",
+            paint.paint(crate::color::CYAN, m.conversation_id.as_str()),
+            paint.provider(&provider),
+            paint.paint(crate::color::BOLD, &title.chars().take(64).collect::<String>()),
+            paint.paint(crate::color::DIM, &format!("({} hits, {})", m.match_count, when)),
         );
         if let Some(best) = &m.best {
-            println!("    #{}: {}", best.turn_index, best.excerpt.chars().take(220).collect::<String>());
+            let (excerpt, kept) = crate::color::truncate_chars(&best.excerpt, 220);
+            let ranges: Vec<(usize, usize)> = best
+                .highlights
+                .iter()
+                .map(|h| (h.start, h.start + h.len))
+                .filter(|(_, end)| *end <= kept)
+                .collect();
             println!(
-                "    inspect: rogrep show {} --around {} ; project {}",
-                m.conversation_id, best.turn_index, project
+                "    {} {}",
+                paint.paint(crate::color::DIM, &format!("#{}:", best.turn_index)),
+                paint.paint_ranges(excerpt, &ranges, crate::color::HIGHLIGHT)
+            );
+            println!(
+                "    {}",
+                paint.paint(
+                    crate::color::DIM,
+                    &format!(
+                        "inspect: rogrep show {} --around {} ; project {}",
+                        m.conversation_id, best.turn_index, project
+                    )
+                )
             );
         }
     }
