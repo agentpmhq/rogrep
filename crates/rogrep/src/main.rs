@@ -1,4 +1,5 @@
 mod cmd;
+mod color;
 mod tui;
 
 use clap::{Parser, Subcommand};
@@ -9,8 +10,21 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
     /// Free-form search query (bare `rogrep QUERY` == `rogrep search QUERY`).
-    #[arg(trailing_var_arg = true)]
     query: Vec<String>,
+    // Search passthrough flags for the bare form, so
+    // `rogrep hermes --limit 5` behaves like `rogrep search hermes --limit 5`.
+    #[arg(long, default_value_t = 20, hide = true)]
+    limit: usize,
+    #[arg(long, hide = true)]
+    project: Option<String>,
+    #[arg(long, hide = true)]
+    cwd: Option<String>,
+    #[arg(long, hide = true)]
+    since: Option<String>,
+    #[arg(long, default_value = "relevance", value_parser = ["relevance", "recent"], hide = true)]
+    sort: String,
+    #[arg(long, hide = true)]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -79,12 +93,12 @@ fn main() -> anyhow::Result<()> {
             } else {
                 cmd::search::run(cmd::search::SearchArgs {
                     query: cli.query,
-                    limit: 20,
-                    project: None,
-                    cwd: None,
-                    since: None,
-                    sort: "relevance".into(),
-                    json: false,
+                    limit: cli.limit,
+                    project: cli.project,
+                    cwd: cli.cwd,
+                    since: cli.since,
+                    sort: cli.sort,
+                    json: cli.json,
                 })
             }
         }
