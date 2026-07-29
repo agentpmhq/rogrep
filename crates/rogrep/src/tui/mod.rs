@@ -46,7 +46,7 @@ pub fn run(entry: Entry) -> Result<()> {
     let backend = ratatui::backend::CrosstermBackend::new(std::io::stdout());
     let mut terminal = ratatui::Terminal::new(backend)?;
     let result = (|| {
-        let mut app = match entry {
+        let app = match entry {
             Entry::Search(query) => app::App::new(store, index, query),
             Entry::Conversation { id, around, exchange } => {
                 let mut app = app::App::new(store, index, None);
