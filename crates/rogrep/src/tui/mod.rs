@@ -12,7 +12,21 @@ use anyhow::Result;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::ExecutableCommand;
 
-pub fn run(initial_query: Option<String>) -> Result<()> {
+/// Where the TUI opens.
+pub enum Entry {
+    /// Search screen, optionally pre-filled.
+    Search(Option<String>),
+    /// Straight into one conversation.
+    Conversation {
+        id: String,
+        /// Land on this turn (its exchange is selected too).
+        around: Option<u32>,
+        /// Or land on this exchange (1-based ordinal).
+        exchange: Option<u32>,
+    },
+}
+
+pub fn run(entry: Entry) -> Result<()> {
     if !crossterm::tty::IsTty::is_tty(&std::io::stdout()) {
         anyhow::bail!("rogrep tui needs an interactive terminal; use `rogrep search`/`show --json` from scripts and agents");
     }
@@ -31,7 +45,17 @@ pub fn run(initial_query: Option<String>) -> Result<()> {
 
     let backend = ratatui::backend::CrosstermBackend::new(std::io::stdout());
     let mut terminal = ratatui::Terminal::new(backend)?;
-    let result = app::App::new(store, index, initial_query).run(&mut terminal);
+    let result = (|| {
+        let mut app = match entry {
+            Entry::Search(query) => app::App::new(store, index, query),
+            Entry::Conversation { id, around, exchange } => {
+                let mut app = app::App::new(store, index, None);
+                app.open_conversation_at(&id, around, exchange)?;
+                app
+            }
+        };
+        app.run(&mut terminal)
+    })();
 
     disable_raw_mode()?;
     std::io::stdout().execute(LeaveAlternateScreen)?;

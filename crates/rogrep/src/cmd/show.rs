@@ -29,6 +29,9 @@ pub struct ShowArgs {
     pub raw: bool,
     #[arg(long)]
     pub json: bool,
+    /// Open the conversation in the interactive TUI at this position.
+    #[arg(long, conflicts_with = "json")]
+    pub tui: bool,
 }
 
 const MAX_TURN_TEXT_BYTES: usize = 2400;
@@ -61,6 +64,7 @@ pub fn show_by_ref(store: &Store, _layout: &DataLayout, reference: &str, json: b
                 limit: 200,
                 raw: false,
                 json,
+                tui: false,
             },
         );
     }
@@ -75,19 +79,26 @@ pub fn show_by_ref(store: &Store, _layout: &DataLayout, reference: &str, json: b
             limit: 40,
             raw: false,
             json,
+            tui: false,
         },
     )
 }
 
 pub fn run(args: ShowArgs) -> Result<()> {
-    let (_layout, _config, store) = super::sync::sync_now(false, true)?;
     // Accept `rg_…#eN` in the positional id too.
+    let mut args = args;
     if let Some(exref) = ExchangeRef::parse(&args.id) {
-        let mut args = args;
         args.id = exref.conversation.to_string();
         args.exchange.get_or_insert(exref.ordinal);
-        return run_inner(&store, args);
     }
+    if args.tui {
+        return crate::tui::run(crate::tui::Entry::Conversation {
+            id: args.id,
+            around: args.around.or(args.turn),
+            exchange: args.exchange,
+        });
+    }
+    let (_layout, _config, store) = super::sync::sync_now(false, true)?;
     run_inner(&store, args)
 }
 
