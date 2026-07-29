@@ -1,4 +1,5 @@
 mod cmd;
+mod tui;
 
 use clap::{Parser, Subcommand};
 
@@ -25,6 +26,11 @@ enum Command {
     Git(cmd::git::GitArgs),
     /// Which conversations led to a PR, branch, or commit.
     Trajectory(cmd::trajectory::TrajectoryArgs),
+    /// Interactive terminal UI.
+    Tui {
+        /// Optional initial query.
+        query: Vec<String>,
+    },
     /// Refresh the local index (runs automatically before other commands).
     Sync(cmd::sync::SyncArgs),
     /// List recent conversations.
@@ -50,6 +56,10 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Show(args)) => cmd::show::run(args),
         Some(Command::Git(args)) => cmd::git::run(args),
         Some(Command::Trajectory(args)) => cmd::trajectory::run(args),
+        Some(Command::Tui { query }) => {
+            let q = if query.is_empty() { None } else { Some(query.join(" ")) };
+            tui::run(q)
+        }
         Some(Command::Sync(args)) => cmd::sync::run(args),
         Some(Command::Ls(args)) => cmd::ls::run(args),
         Some(Command::Stats(args)) => cmd::stats::run(args),
