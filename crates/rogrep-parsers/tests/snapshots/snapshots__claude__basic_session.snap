@@ -1,0 +1,188 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_abc65f3cc6e446ca78ddc260
+agent: claude
+source_path: /home/u/.claude/projects/-home-u-src-proj/basic_session.jsonl
+title: Fix flaky reader offset test
+model: claude-fable-5
+project: "-home-u-src-proj"
+normalized_project: "-home-u-src-proj"
+cwd: /home/u/src/proj
+first_seen: 1782900000000
+last_seen: 1782900064000
+tokens:
+  input: 35
+  output: 92
+  cache_creation: 200
+  cache_read: 3900
+  reasoning_output: 0
+  estimated: 13
+malformed_lines: 0
+origin: interactive
+turns:
+  - turn_index: 0
+    role: user
+    speaker: user
+    text: Fix the flaky parser test in reader.rs
+    ts: 1782900000000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 1
+      byte_start: 0
+      byte_end: 265
+    provider_meta:
+      claude_session_id: sess-1
+      claude_uuid: u1
+  - turn_index: 1
+    role: assistant
+    speaker: assistant
+    text: "Let me look at the test first.\nI'll look at the failing test."
+    ts: 1782900005000
+    cwd: /home/u/src/proj
+    model: claude-fable-5
+    tokens:
+      input: 10
+      output: 50
+      cache_creation: 200
+      cache_read: 1000
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 265
+      byte_end: 715
+    provider_meta:
+      claude_parent_uuid: u1
+      claude_session_id: sess-1
+      claude_uuid: a1
+  - turn_index: 2
+    role: tool
+    speaker: Bash
+    text: "{\"command\":\"cargo test -p reader\",\"description\":\"Run reader tests\"}"
+    ts: 1782900006000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 3
+      byte_start: 715
+      byte_end: 1146
+    tool:
+      direction: use
+      name: Bash
+      pair_id: toolu_01
+      status: unknown
+      input_fields:
+        command: cargo test -p reader
+        description: Run reader tests
+    provider_meta:
+      claude_parent_uuid: a1
+      claude_session_id: sess-1
+      claude_uuid: a2
+  - turn_index: 3
+    role: tool
+    speaker: tool_result
+    text: "test reader::flaky ... FAILED\nassertion failed: offsets"
+    ts: 1782900009000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 13
+    source:
+      line: 4
+      byte_start: 1146
+      byte_end: 1448
+    tool:
+      direction: output
+      name: tool_result
+      pair_id: toolu_01
+      status: failed
+      is_error: true
+    provider_meta:
+      claude_parent_uuid: a2
+      claude_session_id: sess-1
+      claude_uuid: u2
+  - turn_index: 4
+    role: assistant
+    speaker: assistant
+    text: The offsets drift on CRLF input; fixing the reader.
+    ts: 1782900012000
+    cwd: /home/u/src/proj
+    model: claude-fable-5
+    tokens:
+      input: 20
+      output: 30
+      cache_creation: 0
+      cache_read: 1400
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 6
+      byte_start: 1530
+      byte_end: 1878
+    provider_meta:
+      claude_parent_uuid: u2
+      claude_session_id: sess-1
+      claude_uuid: a3
+  - turn_index: 5
+    role: user
+    speaker: user
+    text: "looks good, ship it"
+    ts: 1782900060000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 7
+      byte_start: 1878
+      byte_end: 2067
+    provider_meta:
+      claude_parent_uuid: a3
+      claude_session_id: sess-1
+      claude_uuid: u3
+  - turn_index: 6
+    role: assistant
+    speaker: assistant
+    text: Done — committed the fix.
+    ts: 1782900064000
+    cwd: /home/u/src/proj
+    model: claude-fable-5
+    tokens:
+      input: 5
+      output: 12
+      cache_creation: 0
+      cache_read: 1500
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 8
+      byte_start: 2067
+      byte_end: 2390
+    provider_meta:
+      claude_parent_uuid: u3
+      claude_session_id: sess-1
+      claude_uuid: a4

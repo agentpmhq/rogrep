@@ -1,0 +1,70 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_6996bea0284ca154bd95cdc8
+agent: generic
+source_path: /home/u/logs/openai_shape.jsonl
+project: ""
+normalized_project: home
+first_seen: 1751716805000
+last_seen: 1783252803000
+tokens:
+  input: 0
+  output: 0
+  cache_creation: 0
+  cache_read: 0
+  reasoning_output: 0
+  estimated: 0
+malformed_lines: 0
+origin: interactive
+turns:
+  - turn_index: 0
+    role: user
+    speaker: user
+    text: generic user prompt
+    ts: 1783252800000
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 1
+      byte_start: 0
+      byte_end: 83
+  - turn_index: 1
+    role: assistant
+    speaker: assistant
+    text: generic assistant answer
+    ts: 1783252803000
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 83
+      byte_end: 176
+  - turn_index: 2
+    role: event
+    speaker: event
+    text: an event-ish record
+    ts: 1751716805000
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 3
+      byte_start: 176
+      byte_end: 237

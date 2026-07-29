@@ -1,0 +1,106 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_ef26882c532e1ae7805860c5
+agent: claude
+source_path: /home/u/.claude/projects/-home-u-src-proj/mixed_valid_invalid.jsonl
+model: m1
+project: "-home-u-src-proj"
+normalized_project: "-home-u-src-proj"
+cwd: /home/u/src/x
+first_seen: 1783159200000
+last_seen: 1783159206000
+tokens:
+  input: 7
+  output: 3
+  cache_creation: 0
+  cache_read: 0
+  reasoning_output: 0
+  estimated: 0
+malformed_lines: 3
+origin: interactive
+turns:
+  - turn_index: 0
+    role: user
+    speaker: user
+    text: first valid prompt
+    ts: 1783159200000
+    cwd: /home/u/src/x
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 1
+      byte_start: 0
+      byte_end: 162
+    provider_meta:
+      claude_session_id: s
+      claude_uuid: u1
+  - turn_index: 1
+    role: assistant
+    speaker: assistant
+    text: answer one
+    ts: 1783159201000
+    cwd: /home/u/src/x
+    model: m1
+    tokens:
+      input: 4
+      output: 2
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 3
+      byte_start: 195
+      byte_end: 433
+    provider_meta:
+      claude_session_id: s
+      claude_uuid: a1
+  - turn_index: 2
+    role: user
+    speaker: user
+    text: second prompt after garbage
+    ts: 1783159205000
+    cwd: /home/u/src/x
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 6
+      byte_start: 490
+      byte_end: 639
+    provider_meta:
+      claude_session_id: s
+      claude_uuid: u2
+  - turn_index: 3
+    role: assistant
+    speaker: assistant
+    text: answer two
+    ts: 1783159206000
+    cwd: /home/u/src/x
+    model: m1
+    tokens:
+      input: 3
+      output: 1
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 7
+      byte_start: 639
+      byte_end: 877
+    provider_meta:
+      claude_session_id: s
+      claude_uuid: a2

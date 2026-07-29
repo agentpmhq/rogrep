@@ -1,0 +1,7 @@
+{"type":"user","message":{"role":"user","content":"first valid prompt"},"uuid":"u1","timestamp":"2026-07-04T10:00:00.000Z","cwd":"/home/u/src/x","sessionId":"s"}
+this line is not json at all {{{
+{"type":"assistant","message":{"model":"m1","id":"msg_1","role":"assistant","content":[{"type":"text","text":"answer one"}],"usage":{"input_tokens":4,"output_tokens":2}},"uuid":"a1","timestamp":"2026-07-04T10:00:01.000Z","sessionId":"s"}
+["top-level array is not a record"]
+{"broken": "trailing
+{"type":"user","message":{"role":"user","content":"second prompt after garbage"},"uuid":"u2","timestamp":"2026-07-04T10:00:05.000Z","sessionId":"s"}
+{"type":"assistant","message":{"model":"m1","id":"msg_2","role":"assistant","content":[{"type":"text","text":"answer two"}],"usage":{"input_tokens":3,"output_tokens":1}},"uuid":"a2","timestamp":"2026-07-04T10:00:06.000Z","sessionId":"s"}

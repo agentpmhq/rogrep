@@ -179,6 +179,7 @@ pub fn is_injected_context_text(text: &str) -> bool {
         "<turn_aborted>",
         "<system-reminder>",
         "<local-command-caveat>",
+        "<local-command-stdout>",
         "<command-name>",
         "<user_instructions>",
         "<environment_details>",
