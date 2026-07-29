@@ -1,3 +1,5 @@
+#![allow(dead_code)] // shared across test binaries; not all use every helper
+
 use rogrep_parsers::driver::{parse_from, DriverOutput, Provider};
 use rogrep_parsers::state::ParseState;
 use rogrep_model::AgentKind;

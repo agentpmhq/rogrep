@@ -2,7 +2,7 @@
 
 use rogrep_index::{parse_query, SearchIndex};
 use rogrep_model::AgentKind;
-use rogrep_parsers::driver::{parse_from, DriverOutput, Provider};
+use rogrep_parsers::driver::{parse_from, DriverOutput};
 use rogrep_parsers::state::ParseState;
 use std::io::Write;
 use std::path::Path;
