@@ -16,6 +16,7 @@ use serde::Serialize;
 /// owner, agent_id) are gone; date facets are handled separately below.
 pub const KNOWN_FACET_KEYS: &[&str] = &[
     "is",
+    "origin",
     "provider",
     "agent",
     "model",
@@ -172,7 +173,7 @@ fn normalize_facet_value(key: &str, value: &str) -> String {
             }
         }
         "tool" | "tool_cmd" | "skill" | "mcp" => v.to_lowercase(),
-        "tool_status" | "content" | "is" | "provider" | "agent" | "role" => {
+        "tool_status" | "content" | "is" | "origin" | "provider" | "agent" | "role" => {
             v.to_lowercase().replace('_', "-").replace("--", "-")
         }
         _ => v.to_string(),

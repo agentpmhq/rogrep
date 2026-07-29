@@ -80,7 +80,7 @@ pub fn run(args: ExchangesArgs) -> Result<()> {
                   e.cache_read_tokens + e.estimated_tokens,
                 c.provider, c.normalized_project
          FROM exchanges e JOIN conversations c ON c.id = e.conversation_id
-         WHERE e.user_turn_index IS NOT NULL",
+         WHERE e.user_turn_index IS NOT NULL AND c.origin != 'auxiliary'",
     );
     let mut params: Vec<Box<dyn ToSql>> = Vec::new();
     if args.failed {

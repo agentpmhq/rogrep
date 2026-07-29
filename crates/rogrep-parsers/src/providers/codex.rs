@@ -20,7 +20,9 @@ use rogrep_model::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-pub const CODEX_PARSER_VERSION: u32 = 2;
+pub const CODEX_PARSER_VERSION: u32 = 3;
+
+pub const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
 
 pub struct CodexProvider;
 
@@ -79,9 +81,16 @@ impl RolloutParser for CodexParser {
                     if cwd.starts_with('/') {
                         ctx.set_cwd(cwd);
                     }
-                    if p.get("source")
-                        .and_then(Value::as_object)
-                        .is_some_and(|s| s.contains_key("subagent"))
+                    // The automoderation judge ("guardian") is auxiliary —
+                    // machine-generated evaluation, not user work. Other
+                    // subagent sources stay Subagent.
+                    let subagent_source = p.get("source").and_then(Value::as_object).and_then(|s| s.get("subagent"));
+                    let is_guardian = subagent_source
+                        .map(|v| crate::record::compact_json(v).contains("guardian"))
+                        .unwrap_or(false);
+                    if is_guardian {
+                        ctx.set_origin(Origin::Auxiliary);
+                    } else if subagent_source.is_some()
                         || string_value(p.get("thread_source")) == "subagent"
                     {
                         ctx.set_origin(Origin::Subagent);
@@ -95,6 +104,11 @@ impl RolloutParser for CodexParser {
                         ctx.set_cwd(cwd);
                     }
                     let model = model_from_payload(p);
+                    if model == CODEX_AUTO_REVIEW_MODEL {
+                        // agentpm parity: model codex-auto-review marks the
+                        // whole session as machine evaluation.
+                        ctx.set_origin(Origin::Auxiliary);
+                    }
                     if !model.is_empty() {
                         ctx.set_model(model);
                     }

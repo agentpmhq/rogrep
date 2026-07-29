@@ -207,3 +207,22 @@ fn injected_context_excluded_from_corpus_search_but_findable() {
     let r = index.find(&cid, &parse_query("broken"), 10).unwrap();
     assert_eq!(r.total_turn_hits, 1);
 }
+
+#[test]
+fn auxiliary_sessions_excluded_from_corpus_search() {
+    let judge = parse_bytes(AgentKind::Codex, "judge.jsonl", &fixture("codex/auto_review.jsonl"), None);
+    assert_eq!(judge.conversation.origin, rogrep_model::Origin::Auxiliary);
+    let (_tmp, index) = build_index(&[&judge]);
+
+    // Default corpus search never surfaces the judge session…
+    let hits = index.search(&parse_query("zebrajudge"), None, 10).unwrap();
+    assert!(hits.is_empty(), "auxiliary session leaked into corpus search: {hits:?}");
+    // …but an explicit origin facet opts in…
+    let hits = index.search(&parse_query("zebrajudge origin:auxiliary"), None, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    // …and conversation-scoped find still greps it.
+    let r = index
+        .find(judge.conversation.id.as_str(), &parse_query("zebrajudge"), 10)
+        .unwrap();
+    assert_eq!(r.total_turn_hits, 1);
+}

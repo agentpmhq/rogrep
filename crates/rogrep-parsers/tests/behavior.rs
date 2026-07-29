@@ -232,3 +232,12 @@ fn generic_fallback_extracts_roles() {
     assert_eq!(roles, vec![Role::User, Role::Assistant, Role::Event]);
     assert!(out.conversation.turns[2].ts.is_some(), "numeric ts parsed");
 }
+
+#[test]
+fn codex_auto_review_classified_auxiliary() {
+    let out = common::parse_fixture(AgentKind::Codex, "codex/auto_review.jsonl");
+    assert_eq!(out.conversation.origin, rogrep_model::Origin::Auxiliary);
+    // A genuine session stays interactive.
+    let normal = common::parse_fixture(AgentKind::Codex, "codex/session.jsonl");
+    assert_eq!(normal.conversation.origin, rogrep_model::Origin::Interactive);
+}

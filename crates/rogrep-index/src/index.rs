@@ -120,6 +120,7 @@ impl SearchIndex {
     fn facet_clause(&self, key: &str, value: &str) -> Option<Box<dyn Query>> {
         let (field, term_value): (tantivy::schema::Field, String) = match key {
             "provider" | "agent" => (self.fields.provider, value.to_string()),
+            "origin" => (self.fields.origin, value.to_string()),
             "model" => (self.fields.model, value.to_string()),
             "project" => (self.fields.project, value.to_string()),
             "cwd" => (self.fields.cwd, value.to_string()),
@@ -159,6 +160,18 @@ impl SearchIndex {
                     IndexRecordOption::Basic,
                 )),
             ));
+            // Auxiliary sessions (codex auto-review judges) are machine
+            // evaluation, not user work — excluded unless the query names an
+            // origin explicitly.
+            if !parsed.facets.iter().any(|(k, _)| k == "origin") {
+                clauses.push((
+                    Occur::MustNot,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.origin, "auxiliary"),
+                        IndexRecordOption::Basic,
+                    )),
+                ));
+            }
         }
         if let Some(cid) = conversation_id {
             clauses.push((
@@ -449,6 +462,7 @@ impl IndexBatch {
                 self.fields.visible => if rogrep_model::is_visible_turn(t) { "true" } else { "false" },
                 self.fields.project => conv.normalized_project.as_str(),
                 self.fields.provider => conv.agent.as_str(),
+                self.fields.origin => conv.origin.as_str(),
             );
             if let Some(ts) = t.ts {
                 doc.add_i64(self.fields.ts, ts);

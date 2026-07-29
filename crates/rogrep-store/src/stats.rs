@@ -183,7 +183,8 @@ pub fn projects(store: &Store) -> Result<Vec<ProjectRow>> {
     let mut stmt = store.conn.prepare(
         "SELECT normalized_project, COUNT(*), SUM(exchange_count), SUM(turn_count),
                 MAX(last_activity_at), SUM(input_tokens), SUM(output_tokens), SUM(cache_read_tokens)
-         FROM conversations GROUP BY normalized_project ORDER BY MAX(last_activity_at) DESC",
+         FROM conversations WHERE origin != 'auxiliary'
+         GROUP BY normalized_project ORDER BY MAX(last_activity_at) DESC",
     )?;
     let rows = stmt
         .query_map(params![], |r| {
@@ -325,20 +326,21 @@ pub fn top_exchanges(
     since_ms: Option<i64>,
 ) -> Result<Vec<TopExchange>> {
     let order = match by {
-        TopBy::Tokens => "input_tokens+output_tokens+cache_creation_tokens+cache_read_tokens+estimated_tokens DESC",
-        TopBy::Duration => "duration_ms DESC",
-        TopBy::Turns => "(end_turn-start_turn) DESC",
-        TopBy::ToolCalls => "tool_calls DESC",
+        TopBy::Tokens => "e.input_tokens+e.output_tokens+e.cache_creation_tokens+e.cache_read_tokens+e.estimated_tokens DESC",
+        TopBy::Duration => "e.duration_ms DESC",
+        TopBy::Turns => "(e.end_turn-e.start_turn) DESC",
+        TopBy::ToolCalls => "e.tool_calls DESC",
     };
     let mut sql = format!(
-        "SELECT conversation_id, ordinal, started_at, duration_ms, end_turn-start_turn,
-                tool_calls, failed_tool_calls, output_tokens,
-                input_tokens+output_tokens+cache_creation_tokens+cache_read_tokens+estimated_tokens,
-                user_preview, interrupted
-         FROM exchanges WHERE user_turn_index IS NOT NULL"
+        "SELECT e.conversation_id, e.ordinal, e.started_at, e.duration_ms, e.end_turn-e.start_turn,
+                e.tool_calls, e.failed_tool_calls, e.output_tokens,
+                e.input_tokens+e.output_tokens+e.cache_creation_tokens+e.cache_read_tokens+e.estimated_tokens,
+                e.user_preview, e.interrupted
+         FROM exchanges e JOIN conversations c ON c.id = e.conversation_id
+         WHERE e.user_turn_index IS NOT NULL AND c.origin != 'auxiliary'"
     );
     if since_ms.is_some() {
-        sql.push_str(" AND started_at >= ?1");
+        sql.push_str(" AND e.started_at >= ?1");
     }
     sql.push_str(&format!(" ORDER BY {order} LIMIT {limit}"));
     let mut stmt = store.conn.prepare(&sql)?;
