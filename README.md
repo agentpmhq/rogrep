@@ -12,6 +12,9 @@ Codex, Cursor, Grok, Hermes, opencode** — and answers questions like:
 Everything is local. No daemon, no server, no telemetry — **no data ever
 leaves your machine.** One binary, powered by [tantivy](https://github.com/quickwit-oss/tantivy)
 (sub-millisecond full-text search) and SQLite (deterministic statistics).
+On a real 730MB corpus, rogrep cold-indexes ~20× faster and refreshes
+~230× faster than the nearest comparable tool, in an 8× smaller footprint
+([benchmark](docs/benchmarks/2026-07-cass.md)).
 
 ## Install
 
