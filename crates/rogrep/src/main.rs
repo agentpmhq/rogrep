@@ -77,8 +77,36 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Git(args)) => cmd::git::run(args),
         Some(Command::Trajectory(args)) => cmd::trajectory::run(args),
         Some(Command::Tui { query }) => {
-            let q = if query.is_empty() { None } else { Some(query.join(" ")) };
-            tui::run(q)
+            // A conversation id / exchange ref opens that conversation
+            // directly; anything else pre-fills the search screen. `--`
+            // suppresses id resolution, same as search.
+            let joined = query.join(" ");
+            let trimmed = joined.trim();
+            let literal = cmd::search::argv_has_separator();
+            if literal {
+                return tui::run(tui::Entry::Search(if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(joined)
+                }));
+            }
+            if let Some(exref) = rogrep_model::ids::ExchangeRef::parse(trimmed) {
+                tui::run(tui::Entry::Conversation {
+                    id: exref.conversation.to_string(),
+                    around: None,
+                    exchange: Some(exref.ordinal),
+                })
+            } else if rogrep_model::ids::ConversationId::looks_like_id(trimmed) {
+                tui::run(tui::Entry::Conversation {
+                    id: trimmed.to_string(),
+                    around: None,
+                    exchange: None,
+                })
+            } else if trimmed.is_empty() {
+                tui::run(tui::Entry::Search(None))
+            } else {
+                tui::run(tui::Entry::Search(Some(joined)))
+            }
         }
         Some(Command::Sync(args)) => cmd::sync::run(args),
         Some(Command::Ls(args)) => cmd::ls::run(args),

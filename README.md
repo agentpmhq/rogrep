@@ -69,11 +69,11 @@ cargo insta review          # review parser snapshot changes
 rogrep QUERY                  search everything (alias for rogrep search)
 rogrep x QUERY [--failed --min-duration 5m ...]   search/list exchanges
 rogrep find CONV QUERY        conjunction find inside one conversation
-rogrep show CONV[#eN]         render turns / one exchange (--json for exact payloads)
+rogrep show CONV[#eN]         render turns / one exchange (--json exact, --tui interactive)
 rogrep git CONV [--pr N]      git/GitHub timeline of a conversation
 rogrep trajectory --pr N      which conversations led to a PR/branch/commit
 rogrep ls / stats / doctor    listings, usage reports, health checks
-rogrep tui                    interactive terminal UI
+rogrep tui [QUERY|rg_…[#eN]]  interactive terminal UI (an id opens that conversation)
 ```
 
 Query grammar: bare terms AND together, `"quoted phrases"` match in order,

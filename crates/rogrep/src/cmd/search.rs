@@ -8,6 +8,8 @@ use rogrep_store::Store;
 pub struct SearchArgs {
     /// Query: bare terms, "quoted phrases", and key:value facets
     /// (tool:, tool_cmd:, tool_status:, git_pr_num:, file:, project:, …).
+    /// A lone rg_… id resolves to `show`; prefix with `--` to search for an
+    /// id-shaped token as literal text instead.
     pub query: Vec<String>,
     #[arg(long, default_value_t = 20)]
     pub limit: usize,
@@ -39,13 +41,23 @@ pub fn resolve_project_key(project: &Option<String>, cwd: &Option<String>) -> Op
     }
 }
 
+/// Was a bare `--` separator passed on the command line? It suppresses the
+/// exact-id short-circuit so an id-shaped token can be searched as text.
+pub fn argv_has_separator() -> bool {
+    std::env::args().skip(1).any(|a| a == "--")
+}
+
 pub fn run(args: SearchArgs) -> Result<()> {
     let (layout, _config, store) = super::sync::sync_now(false, true)?;
     let raw_query = args.query.join(" ");
 
-    // Exact-id short-circuit.
+    // Exact-id short-circuit: a query that is exactly one conversation id or
+    // exchange ref resolves to `show`. Escape with `--` to force a literal
+    // text search (`rogrep -- rg_…` finds conversations MENTIONING the id).
     let trimmed = raw_query.trim();
-    if ConversationId::looks_like_id(trimmed) || ExchangeRef::parse(trimmed).is_some() {
+    if !argv_has_separator()
+        && (ConversationId::looks_like_id(trimmed) || ExchangeRef::parse(trimmed).is_some())
+    {
         return super::show::show_by_ref(&store, &layout, trimmed, args.json);
     }
 

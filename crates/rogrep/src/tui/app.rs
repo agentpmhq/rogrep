@@ -16,6 +16,32 @@ enum Screen {
     Stats,
 }
 
+/// How tool turns render in the conversation view (`t` cycles).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ToolDisplay {
+    Full,
+    Collapsed,
+    Hidden,
+}
+
+impl ToolDisplay {
+    fn next(self) -> ToolDisplay {
+        match self {
+            ToolDisplay::Full => ToolDisplay::Collapsed,
+            ToolDisplay::Collapsed => ToolDisplay::Hidden,
+            ToolDisplay::Hidden => ToolDisplay::Full,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            ToolDisplay::Full => "full",
+            ToolDisplay::Collapsed => "collapsed",
+            ToolDisplay::Hidden => "hidden",
+        }
+    }
+}
+
 pub struct App {
     store: Store,
     index: SearchIndex,
@@ -36,6 +62,7 @@ pub struct App {
     find_active: bool,
     find_matches: Vec<usize>,
     find_pos: usize,
+    tool_display: ToolDisplay,
     // Stats screen.
     heatmap: [[u64; 24]; 7],
     top: Vec<rogrep_store::stats::TopExchange>,
@@ -61,6 +88,7 @@ impl App {
             find_active: false,
             find_matches: Vec::new(),
             find_pos: 0,
+            tool_display: ToolDisplay::Full,
             heatmap: [[0; 24]; 7],
             top: Vec::new(),
         };
@@ -131,29 +159,51 @@ impl App {
             self.results.get(self.selected).map(|(m, _)| m.conversation_id.clone())
         };
         let Some(id) = id else { return };
-        match crate::cmd::show::load_conversation(&self.store, &id) {
-            Ok((row, conv)) => {
-                self.exchanges = build_exchanges(&conv.turns);
-                // Land on the best-matching turn's exchange when arriving
-                // from a search hit.
-                let target_turn = self
-                    .results
-                    .get(self.selected)
-                    .and_then(|(m, _)| m.best.as_ref().map(|b| b.turn_index));
-                self.exchange_idx = target_turn
-                    .and_then(|t| self.exchanges.iter().position(|e| t >= e.start_turn && t < e.end_turn))
-                    .unwrap_or(0);
-                self.scroll_turn = target_turn
-                    .map(|t| t as usize)
-                    .unwrap_or_else(|| self.exchanges.get(self.exchange_idx).map(|e| e.start_turn as usize).unwrap_or(0));
-                self.conv = Some(conv);
-                self.conv_row = Some(row);
-                self.find.clear();
-                self.find_matches.clear();
-                self.screen = Screen::Conversation;
-            }
-            Err(e) => self.status = format!("open failed: {e}"),
+        // Land on the best-matching turn when arriving from a search hit.
+        let target_turn = self
+            .results
+            .get(self.selected)
+            .and_then(|(m, _)| m.best.as_ref().map(|b| b.turn_index));
+        if let Err(e) = self.open_conversation(&id, target_turn) {
+            self.status = format!("open failed: {e}");
         }
+    }
+
+    /// Open one conversation directly (also the `rogrep tui rg_…` /
+    /// `rogrep show --tui` entry point). `around` beats `exchange` (1-based
+    /// ordinal) when both are given.
+    pub fn open_conversation(&mut self, id: &str, around: Option<u32>) -> anyhow::Result<()> {
+        self.open_conversation_at(id, around, None)
+    }
+
+    pub fn open_conversation_at(
+        &mut self,
+        id: &str,
+        around: Option<u32>,
+        exchange: Option<u32>,
+    ) -> anyhow::Result<()> {
+        let (row, conv) = crate::cmd::show::load_conversation(&self.store, id)?;
+        self.exchanges = build_exchanges(&conv.turns);
+        let around = around.or_else(|| {
+            exchange.and_then(|e1| {
+                self.exchanges
+                    .iter()
+                    .find(|e| e.ordinal + 1 == e1)
+                    .map(|e| e.start_turn)
+            })
+        });
+        self.exchange_idx = around
+            .and_then(|t| self.exchanges.iter().position(|e| t >= e.start_turn && t < e.end_turn))
+            .unwrap_or(0);
+        self.scroll_turn = around
+            .map(|t| t as usize)
+            .unwrap_or_else(|| self.exchanges.get(self.exchange_idx).map(|e| e.start_turn as usize).unwrap_or(0));
+        self.conv = Some(conv);
+        self.conv_row = Some(row);
+        self.find.clear();
+        self.find_matches.clear();
+        self.screen = Screen::Conversation;
+        Ok(())
     }
 
     fn open_stats(&mut self) {
@@ -241,6 +291,7 @@ impl App {
                 }
                 match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => self.screen = Screen::Search,
+                    KeyCode::Char('t') => self.tool_display = self.tool_display.next(),
                     KeyCode::Char('/') => {
                         self.find_active = true;
                         self.find.clear();
@@ -417,13 +468,17 @@ impl App {
             format!("find: {}▏", self.find)
         } else if !self.find_matches.is_empty() {
             format!(
-                "match {}/{} for \"{}\" — n/N jump · [ ] exchanges · j/k scroll · q back",
+                "match {}/{} for \"{}\" — n/N jump · t tools:{} · [ ] exchanges · j/k scroll · q back",
                 self.find_pos + 1,
                 self.find_matches.len(),
-                self.find
+                self.find,
+                self.tool_display.label()
             )
         } else {
-            "j/k scroll · d/u page · [ ] exchanges · / find · g/G ends · q back".to_string()
+            format!(
+                "j/k scroll · d/u page · [ ] exchanges · / find · t tools:{} · g/G ends · q back",
+                self.tool_display.label()
+            )
         };
         f.render_widget(
             Paragraph::new(footer).style(Style::default().fg(Color::DarkGray)),
@@ -435,10 +490,52 @@ impl App {
         let mut lines: Vec<Line> = Vec::new();
         let needle = self.find.to_lowercase();
         let budget = area.height as usize * 3;
+        let find_target = self.find_matches.get(self.find_pos).copied();
+        let mut hidden_run: usize = 0;
+        let flush_hidden = |run: &mut usize, lines: &mut Vec<Line>| {
+            if *run > 0 {
+                lines.push(Line::from(Span::styled(
+                    format!("  · {} tool turn(s) hidden (t to show)", run),
+                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                )));
+                lines.push(Line::default());
+                *run = 0;
+            }
+        };
         for t in conv.turns.iter().skip(self.scroll_turn) {
             if lines.len() > budget {
                 break;
             }
+            // Tool-turn display mode. The current find target always renders
+            // in full so n/N jumps never land on nothing.
+            let is_find_target = find_target == Some(t.turn_index as usize);
+            if t.role == Role::Tool && !is_find_target {
+                match self.tool_display {
+                    ToolDisplay::Hidden => {
+                        hidden_run += 1;
+                        continue;
+                    }
+                    ToolDisplay::Collapsed => {
+                        flush_hidden(&mut hidden_run, &mut lines);
+                        let head: String =
+                            t.text.replace('\n', " ").chars().take(100).collect();
+                        lines.push(Line::from(vec![
+                            Span::styled(
+                                format!("[{:>4}] ", t.turn_index),
+                                Style::default().fg(Color::DarkGray),
+                            ),
+                            Span::styled(
+                                format!("{}: ", t.speaker),
+                                Style::default().fg(Color::Magenta),
+                            ),
+                            Span::styled(head, Style::default().fg(Color::DarkGray)),
+                        ]));
+                        continue;
+                    }
+                    ToolDisplay::Full => {}
+                }
+            }
+            flush_hidden(&mut hidden_run, &mut lines);
             let (color, label) = match t.role {
                 Role::User => (Color::Green, "user"),
                 Role::Assistant => (Color::Blue, "assistant"),
@@ -467,12 +564,14 @@ impl App {
             }
             lines.push(Line::default());
         }
+        flush_hidden(&mut hidden_run, &mut lines);
         let para = Paragraph::new(lines)
             .wrap(Wrap { trim: false })
             .block(Block::default().borders(Borders::ALL).title(format!(
-                " turns {}..{} ",
+                " turns {}..{} · tools {} ",
                 self.scroll_turn,
-                conv.turns.len()
+                conv.turns.len(),
+                self.tool_display.label()
             )));
         f.render_widget(para, area);
     }
@@ -591,5 +690,24 @@ mod tests {
         app.open_stats();
         app.set_screen_for_test(2);
         terminal.draw(|f| app.draw(f)).unwrap();
+
+        // Direct conversation entry (the `rogrep show --tui` path), landing
+        // on a specific turn, then cycle tool display through all modes.
+        let id = app.conv_row.as_ref().unwrap().id.clone();
+        app.open_conversation(&id, Some(3)).unwrap();
+        assert_eq!(app.scroll_turn, 3);
+        let rendered_modes: Vec<&str> = (0..3)
+            .map(|_| {
+                app.tool_display = app.tool_display.next();
+                terminal.draw(|f| app.draw(f)).unwrap();
+                app.tool_display.label()
+            })
+            .collect();
+        assert_eq!(rendered_modes, vec!["collapsed", "hidden", "full"]);
+
+        // Exchange-ordinal entry (`rogrep tui rg_…#e2`).
+        app.open_conversation_at(&id, None, Some(2)).unwrap();
+        assert_eq!(app.exchange_idx, 1);
+        assert_eq!(app.scroll_turn as u32, app.exchanges[1].start_turn);
     }
 }
