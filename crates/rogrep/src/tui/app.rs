@@ -437,10 +437,12 @@ impl App {
             .split(f.area());
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+            .constraints([Constraint::Percentage(36), Constraint::Percentage(64)])
             .split(outer[0]);
 
-        // Exchange sidebar.
+        // Exchange sidebar: two lines per exchange (meta, then preview) with
+        // a spacer between items.
+        let tz = jiff::tz::TimeZone::system();
         let items: Vec<ListItem> = self
             .exchanges
             .iter()
@@ -448,8 +450,24 @@ impl App {
                 let preview = if e.user_preview.is_empty() {
                     "(preamble)".to_string()
                 } else {
-                    e.user_preview.chars().take(60).collect()
+                    e.user_preview.chars().take(100).collect()
                 };
+                let mut meta_parts: Vec<String> = Vec::new();
+                if let Some(ms) = e.started_at {
+                    if let Ok(ts) = jiff::Timestamp::from_millisecond(ms) {
+                        meta_parts.push(ts.to_zoned(tz.clone()).strftime("%m-%d %H:%M").to_string());
+                    }
+                }
+                if let Some(dur) = e.duration_ms() {
+                    if dur >= 1000 {
+                        meta_parts.push(format!("{:.0}s", dur as f64 / 1000.0));
+                    }
+                }
+                let tokens = e.tokens.display_total();
+                if tokens > 0 {
+                    let approx = if e.tokens.accounted() == 0 { "~" } else { "" };
+                    meta_parts.push(format!("{approx}{} tok", fmt_tokens(tokens)));
+                }
                 let mut flags = String::new();
                 if e.signals.error {
                     flags.push('✗');
@@ -457,18 +475,28 @@ impl App {
                 if e.signals.interrupted {
                     flags.push('⏻');
                 }
-                let tokens = e.tokens.display_total();
-                let token_label = if tokens > 0 {
-                    let approx = if e.tokens.accounted() == 0 { "~" } else { "" };
-                    format!("{approx}{} tok", fmt_tokens(tokens))
-                } else {
-                    String::new()
-                };
-                ListItem::new(Line::from(vec![
-                    Span::styled(format!("#e{:<3}", e.ordinal + 1), Style::default().fg(Color::Yellow)),
-                    Span::styled(format!("{token_label:>9} "), Style::default().fg(Color::DarkGray)),
-                    Span::raw(format!("{flags} {preview}")),
-                ]))
+                if e.signals.compacted {
+                    flags.push('§');
+                }
+                let mut meta_line = vec![Span::styled(
+                    format!("#e{:<3} ", e.ordinal + 1),
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                )];
+                meta_line.push(Span::styled(
+                    meta_parts.join(" · "),
+                    Style::default().fg(Color::DarkGray),
+                ));
+                if !flags.is_empty() {
+                    meta_line.push(Span::styled(
+                        format!("  {flags}"),
+                        Style::default().fg(Color::Red),
+                    ));
+                }
+                ListItem::new(vec![
+                    Line::from(meta_line),
+                    Line::from(Span::raw(format!("      {preview}"))),
+                    Line::default(),
+                ])
             })
             .collect();
         let mut state = ListState::default();
