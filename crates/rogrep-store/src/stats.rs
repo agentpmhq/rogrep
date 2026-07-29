@@ -202,6 +202,98 @@ pub fn projects(store: &Store) -> Result<Vec<ProjectRow>> {
     Ok(rows)
 }
 
+/// Tool usage rollup.
+#[derive(Clone, Debug, Serialize)]
+pub struct ToolUsageRow {
+    pub tool: String,
+    pub calls: u64,
+    pub failed: u64,
+    pub rejected: u64,
+    pub mutating: u64,
+}
+
+pub fn tool_usage(store: &Store, since_ms: Option<i64>) -> Result<Vec<ToolUsageRow>> {
+    let mut sql = String::from(
+        "SELECT tool, COUNT(*),
+                SUM(status='failed'), SUM(status='rejected'), SUM(COALESCE(mutating,0))
+         FROM tool_events WHERE 1=1",
+    );
+    if since_ms.is_some() {
+        sql.push_str(" AND ts >= ?1");
+    }
+    sql.push_str(" GROUP BY tool ORDER BY COUNT(*) DESC");
+    let mut stmt = store.conn.prepare(&sql)?;
+    let map = |r: &rusqlite::Row<'_>| {
+        Ok(ToolUsageRow {
+            tool: r.get(0)?,
+            calls: r.get::<_, i64>(1)? as u64,
+            failed: r.get::<_, Option<i64>>(2)?.unwrap_or(0) as u64,
+            rejected: r.get::<_, Option<i64>>(3)?.unwrap_or(0) as u64,
+            mutating: r.get::<_, Option<i64>>(4)?.unwrap_or(0) as u64,
+        })
+    };
+    let rows = match since_ms {
+        Some(s) => stmt.query_map(params![s], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+        None => stmt.query_map([], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+    };
+    Ok(rows)
+}
+
+/// Top shell executables (`tool_cmd` heads).
+pub fn command_usage(store: &Store, since_ms: Option<i64>, limit: u32) -> Result<Vec<(String, u64, u64)>> {
+    let mut sql = String::from(
+        "SELECT cmd_head, COUNT(*), SUM(status='failed') FROM tool_events
+         WHERE cmd_head IS NOT NULL",
+    );
+    if since_ms.is_some() {
+        sql.push_str(" AND ts >= ?1");
+    }
+    sql.push_str(&format!(" GROUP BY cmd_head ORDER BY COUNT(*) DESC LIMIT {limit}"));
+    let mut stmt = store.conn.prepare(&sql)?;
+    let map = |r: &rusqlite::Row<'_>| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, i64>(1)? as u64,
+            r.get::<_, Option<i64>>(2)?.unwrap_or(0) as u64,
+        ))
+    };
+    let rows = match since_ms {
+        Some(s) => stmt.query_map(params![s], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+        None => stmt.query_map([], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+    };
+    Ok(rows)
+}
+
+/// Daily git activity from indexed git facets.
+pub fn git_activity(store: &Store, since_ms: Option<i64>) -> Result<Vec<(String, u64, u64, u64)>> {
+    // (day-utc, commits, pushes, pr_actions)
+    let mut sql = String::from(
+        "SELECT date(ts/1000, 'unixepoch'),
+                SUM(git_facets LIKE '%git_cmd:commit%'),
+                SUM(git_facets LIKE '%git_cmd:push%'),
+                SUM(git_facets LIKE '%git_pr:%')
+         FROM tool_events WHERE git_facets IS NOT NULL AND ts IS NOT NULL",
+    );
+    if since_ms.is_some() {
+        sql.push_str(" AND ts >= ?1");
+    }
+    sql.push_str(" GROUP BY 1 ORDER BY 1");
+    let mut stmt = store.conn.prepare(&sql)?;
+    let map = |r: &rusqlite::Row<'_>| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, Option<i64>>(1)?.unwrap_or(0) as u64,
+            r.get::<_, Option<i64>>(2)?.unwrap_or(0) as u64,
+            r.get::<_, Option<i64>>(3)?.unwrap_or(0) as u64,
+        ))
+    };
+    let rows = match since_ms {
+        Some(s) => stmt.query_map(params![s], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+        None => stmt.query_map([], map)?.collect::<std::result::Result<Vec<_>, _>>()?,
+    };
+    Ok(rows)
+}
+
 /// Exchange leaderboard.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TopBy {

@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 rogrep-model.workspace = true
 rogrep-parsers.workspace = true
+rogrep-tooltree.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

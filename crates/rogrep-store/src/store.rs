@@ -50,13 +50,32 @@ impl Store {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let conn = Connection::open(path)?;
-        conn.pragma_update(None, "journal_mode", "WAL")?;
-        conn.pragma_update(None, "synchronous", "NORMAL")?;
-        conn.execute_batch(DDL)?;
-        let store = Store { conn };
-        store.check_schema_version()?;
-        Ok(store)
+        // Everything in the store is derived: on a schema-version mismatch,
+        // wipe the db and let the next sync re-derive from source files.
+        for attempt in 0..2 {
+            let conn = Connection::open(path)?;
+            conn.pragma_update(None, "journal_mode", "WAL")?;
+            conn.pragma_update(None, "synchronous", "NORMAL")?;
+            let version_ok = conn
+                .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| {
+                    r.get::<_, String>(0)
+                })
+                .optional()
+                .unwrap_or(None)
+                .map(|v| v == SCHEMA_VERSION.to_string());
+            if version_ok == Some(false) && attempt == 0 {
+                drop(conn);
+                std::fs::remove_file(path)?;
+                let _ = std::fs::remove_file(path.with_extension("sqlite3-wal"));
+                let _ = std::fs::remove_file(path.with_extension("sqlite3-shm"));
+                continue;
+            }
+            conn.execute_batch(DDL)?;
+            let store = Store { conn };
+            store.check_schema_version()?;
+            return Ok(store);
+        }
+        unreachable!("schema wipe loop always returns");
     }
 
     pub fn open_in_memory() -> Result<Store> {
@@ -169,12 +188,10 @@ impl Store {
             params![cid, replace_from],
         )?;
 
-        // Exchange ordinals continue from the frozen prefix.
-        let base_ordinal: i64 = tx.query_row(
-            "SELECT COALESCE(MAX(ordinal)+1, 0) FROM exchanges WHERE conversation_id=?1",
-            params![cid],
-            |r| r.get(0),
-        )?;
+        // Exchange ordinals continue from the frozen prefix. The parse chain
+        // tracks the frozen exchange count, keeping store and search index
+        // ordinals identical.
+        let base_ordinal: i64 = out.exchange_base as i64;
         let exchanges = build_exchanges(&conv.turns);
         let ordinal_for = |turn_index: u32| -> i64 {
             exchanges
@@ -259,6 +276,58 @@ impl Store {
                     e.tokens.reasoning_output,
                     e.tokens.estimated,
                 ])?;
+            }
+        }
+
+        // Tool events + file refs.
+        {
+            let mut ins_event = tx.prepare_cached(
+                "INSERT OR REPLACE INTO tool_events(conversation_id, turn_index, seq,
+                   exchange_ordinal, tool, mutating, status, cmd_head, git_facets, ts)
+                 VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            )?;
+            let mut ins_ref = tx.prepare_cached(
+                "INSERT OR REPLACE INTO file_refs(conversation_id, turn_index, path, mode)
+                 VALUES(?1,?2,?3,?4)",
+            )?;
+            for t in &conv.turns {
+                let Some(info) = &t.tool else { continue };
+                if info.direction != Some(rogrep_model::ToolDirection::Use) {
+                    continue;
+                }
+                let facets = rogrep_tooltree::facet_tokens_for_turn(t);
+                let cmd_head = facets
+                    .iter()
+                    .find_map(|f| f.strip_prefix("tool_cmd:"))
+                    .map(|s| s.to_string());
+                let git_facets: Vec<&String> =
+                    facets.iter().filter(|f| f.starts_with("git_")).collect();
+                let mutating = facets.iter().any(|f| f == "tool_mutating:true");
+                ins_event.execute(params![
+                    cid,
+                    t.turn_index,
+                    0,
+                    ordinal_for(t.turn_index),
+                    info.name.to_lowercase(),
+                    mutating,
+                    info.status.as_str(),
+                    cmd_head,
+                    if git_facets.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            git_facets
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                        )
+                    },
+                    t.ts,
+                ])?;
+                for (path, mode) in rogrep_tooltree::facets::file_refs_for_turn(t) {
+                    ins_ref.execute(params![cid, t.turn_index, path, mode])?;
+                }
             }
         }
 

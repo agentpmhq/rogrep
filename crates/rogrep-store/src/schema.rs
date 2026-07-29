@@ -1,7 +1,7 @@
 //! SQLite schema. Everything here is derived data: schema changes bump
 //! SCHEMA_VERSION and trigger a wipe + re-derive, never a migration.
 
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 pub const DDL: &str = r#"
 CREATE TABLE IF NOT EXISTS meta(
@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS tool_events(
   mutating INTEGER,
   status TEXT NOT NULL DEFAULT 'unknown',
   cmd_head TEXT,
+  git_facets TEXT,
   ts INTEGER,
   PRIMARY KEY(conversation_id, turn_index, seq)
 ) WITHOUT ROWID;

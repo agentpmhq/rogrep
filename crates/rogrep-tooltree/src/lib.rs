@@ -6,6 +6,8 @@
 
 pub mod facets;
 pub mod git;
+pub mod gitops;
 pub mod shell;
 
 pub use facets::{facet_tokens_for_turn, output_facet_tokens};
+pub use gitops::{git_ops_for_conversation, GitOp};

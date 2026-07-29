@@ -27,6 +27,15 @@ fn command_from_input(turn: &Turn) -> Option<String> {
     None
 }
 
+/// The shell command of a shell-tool call turn, if any.
+pub fn command_from_shell_turn(turn: &Turn) -> Option<String> {
+    let info = turn.tool.as_ref()?;
+    if !is_shell_tool(&info.name) {
+        return None;
+    }
+    command_from_input(turn)
+}
+
 /// Facet tokens for the command line of a shell tool call.
 pub fn shell_command_facets(command: &str) -> Vec<String> {
     let mut out = Vec::new();

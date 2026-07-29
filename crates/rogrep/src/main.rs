@@ -21,6 +21,10 @@ enum Command {
     Find(cmd::find::FindArgs),
     /// Show a conversation, exchange (rg_…#eN), or turn window.
     Show(cmd::show::ShowArgs),
+    /// Git/GitHub timeline of one conversation.
+    Git(cmd::git::GitArgs),
+    /// Which conversations led to a PR, branch, or commit.
+    Trajectory(cmd::trajectory::TrajectoryArgs),
     /// Refresh the local index (runs automatically before other commands).
     Sync(cmd::sync::SyncArgs),
     /// List recent conversations.
@@ -44,6 +48,8 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Search(args)) => cmd::search::run(args),
         Some(Command::Find(args)) => cmd::find::run(args),
         Some(Command::Show(args)) => cmd::show::run(args),
+        Some(Command::Git(args)) => cmd::git::run(args),
+        Some(Command::Trajectory(args)) => cmd::trajectory::run(args),
         Some(Command::Sync(args)) => cmd::sync::run(args),
         Some(Command::Ls(args)) => cmd::ls::run(args),
         Some(Command::Stats(args)) => cmd::stats::run(args),

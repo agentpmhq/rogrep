@@ -27,6 +27,10 @@ pub enum StatsView {
     Monthly,
     /// Hour-of-week activity heatmap.
     Heatmap,
+    /// Tool invocation counts, failure rates, top shell commands.
+    Tools,
+    /// Daily git activity (commits, pushes, PR actions).
+    Git,
     /// Exchange leaderboard.
     Top {
         #[arg(long, default_value = "tokens", value_parser = ["tokens", "duration", "turns", "tools"])]
@@ -153,6 +157,53 @@ pub fn run(args: StatsArgs) -> Result<()> {
                 println!("{name}  |{row}|");
             }
             println!("(turn activity by local hour, shaded by volume)");
+        }
+        StatsView::Tools => {
+            let tools = stats::tool_usage(&store, since)?;
+            let cmds = stats::command_usage(&store, since, 15)?;
+            if args.json {
+                println!(
+                    "{}",
+                    serde_json::json!({"tools": tools, "commands": cmds.iter().map(|(c, n, f)|
+                        serde_json::json!({"cmd": c, "calls": n, "failed": f})).collect::<Vec<_>>()})
+                );
+                return Ok(());
+            }
+            println!("{:<28} {:>8} {:>7} {:>7} {:>8}", "TOOL", "CALLS", "FAILED", "REJECT", "MUTATING");
+            for t in tools.iter().take(20) {
+                println!(
+                    "{:<28} {:>8} {:>7} {:>7} {:>8}",
+                    t.tool.chars().take(28).collect::<String>(),
+                    t.calls,
+                    t.failed,
+                    t.rejected,
+                    t.mutating
+                );
+            }
+            println!();
+            println!("{:<20} {:>8} {:>7}", "SHELL COMMAND", "RUNS", "FAILED");
+            for (cmd, n, failed) in cmds {
+                println!("{:<20} {:>8} {:>7}", cmd.chars().take(20).collect::<String>(), n, failed);
+            }
+        }
+        StatsView::Git => {
+            let rows = stats::git_activity(&store, since)?;
+            if args.json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &rows
+                            .iter()
+                            .map(|(d, c, p, pr)| serde_json::json!({"day": d, "commits": c, "pushes": p, "pr_actions": pr}))
+                            .collect::<Vec<_>>()
+                    )?
+                );
+                return Ok(());
+            }
+            println!("{:<12} {:>8} {:>8} {:>10}", "DAY (UTC)", "COMMITS", "PUSHES", "PR-ACTIONS");
+            for (day, commits, pushes, prs) in rows {
+                println!("{day:<12} {commits:>8} {pushes:>8} {prs:>10}");
+            }
         }
         StatsView::Top { by, limit } => {
             let by = match by.as_str() {
