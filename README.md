@@ -15,14 +15,44 @@ leaves your machine.** One binary, powered by [tantivy](https://github.com/quick
 
 ## Install
 
+Prerequisite: a Rust toolchain, 1.85 or newer ([rustup.rs](https://rustup.rs)).
+Everything else (SQLite, tantivy) is bundled — no system libraries needed.
+
 ```sh
-cargo install --path crates/rogrep      # from a checkout
+git clone https://github.com/agentpmhq/rogrep
+cd rogrep
+./scripts/install.sh        # release build → ~/.local/bin/rogrep + agent skill
+```
+
+or by hand:
+
+```sh
+cargo install --path crates/rogrep      # installs to ~/.cargo/bin
 rogrep skill install                    # optional: teach local agents to use rogrep
 ```
 
-The index lives in `~/.local/share/rogrep` and refreshes incrementally at
-the start of every command — a steady-state refresh costs milliseconds; the
-first run indexes your whole history (about 20s per GB).
+Then build the index and look around:
+
+```sh
+rogrep sync                 # first run indexes your whole history (~20s per GB)
+rogrep doctor               # what was discovered, per provider
+rogrep stats projects
+```
+
+The index lives in `~/.local/share/rogrep` (override with
+`$ROGREP_DATA_DIR`; config at `~/.config/rogrep/config.toml`) and refreshes
+incrementally at the start of every command — a steady-state refresh costs
+milliseconds. It is all derived data: deleting the data dir just triggers a
+clean rebuild.
+
+## Building from source
+
+```sh
+cargo build --release       # binary at target/release/rogrep
+cargo test --workspace      # full test suite
+cargo insta review          # review parser snapshot changes
+./scripts/build-release.sh  # versioned binary in dist/
+```
 
 ## Concepts
 
@@ -90,4 +120,4 @@ registry entry, an `AgentKind` variant, and fixtures with snapshot tests.
 
 ## License
 
-MIT OR Apache-2.0.
+Apache-2.0.
