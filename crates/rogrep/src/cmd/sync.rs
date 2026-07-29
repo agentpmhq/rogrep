@@ -24,25 +24,19 @@ pub fn sync_now(full: bool, quiet: bool) -> Result<(DataLayout, Config, Store)> 
         full,
         ..Default::default()
     };
-    let mut last_shown = std::time::Instant::now();
+    // Substantial re-indexing gets a progress bar even on implicit syncs
+    // (the `quiet` flag only suppresses text notes); indicatif hides it when
+    // stderr is not a terminal.
+    let mut progress = super::progress::SyncProgress::default();
     let report = rogrep_engine::sync(
         &layout,
         &config,
         &mut store,
         &mut super::index::open_indexer(&layout, &config)?,
         &options,
-        &mut |event| {
-            if quiet {
-                return;
-            }
-            if let SyncEvent::Parsing { path, index, total } = event {
-                if total > 3 && last_shown.elapsed().as_millis() > 200 {
-                    eprintln!("  indexing {index}/{total}: {path}");
-                    last_shown = std::time::Instant::now();
-                }
-            }
-        },
+        &mut |event| progress.handle(event),
     )?;
+    progress.clear();
     if !report.synced && !quiet {
         eprintln!("note: another rogrep is syncing; results may be seconds stale");
     }
@@ -61,24 +55,21 @@ pub fn run(args: SyncArgs) -> Result<()> {
         ..Default::default()
     };
     let started = std::time::Instant::now();
-    let mut last = std::time::Instant::now();
+    let mut progress = super::progress::SyncProgress::default();
     let report = rogrep_engine::sync(
         &layout,
         &config,
         &mut store,
         &mut super::index::open_indexer(&layout, &config)?,
         &options,
-        &mut |event| match event {
-            SyncEvent::Discovered(n) => eprintln!("discovered {n} rollout files"),
-            SyncEvent::Parsing { path, index, total } => {
-                if last.elapsed().as_millis() > 250 || index == total {
-                    eprintln!("  [{index}/{total}] {path}");
-                    last = std::time::Instant::now();
-                }
+        &mut |event| {
+            if let SyncEvent::Discovered(n) = event {
+                eprintln!("discovered {n} rollout files");
             }
-            SyncEvent::Done => {}
+            progress.handle(event);
         },
     )?;
+    progress.clear();
     if args.json {
         println!(
             "{}",

@@ -5,6 +5,7 @@ pub mod git;
 pub mod index;
 pub mod ls;
 pub mod parse;
+pub mod progress;
 pub mod search;
 pub mod show;
 pub mod skill;
