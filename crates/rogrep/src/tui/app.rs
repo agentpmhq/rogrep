@@ -16,6 +16,16 @@ enum Screen {
     Stats,
 }
 
+fn fmt_tokens(n: u64) -> String {
+    if n >= 10_000_000 {
+        format!("{:.1}M", n as f64 / 1e6)
+    } else if n >= 10_000 {
+        format!("{:.0}k", n as f64 / 1e3)
+    } else {
+        n.to_string()
+    }
+}
+
 /// How tool turns render in the conversation view (`t` cycles).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ToolDisplay {
@@ -492,6 +502,28 @@ impl App {
         let budget = area.height as usize * 3;
         let find_target = self.find_matches.get(self.find_pos).copied();
         let mut hidden_run: usize = 0;
+        let tz = jiff::tz::TimeZone::system();
+        // "14:03:21" (or "07-12 14:03:21" when the turn is not from today).
+        let today = jiff::Timestamp::now().to_zoned(tz.clone()).date();
+        let turn_meta = |t: &rogrep_model::Turn| -> String {
+            let mut meta = String::new();
+            if let Some(ms) = t.ts {
+                if let Ok(ts) = jiff::Timestamp::from_millisecond(ms) {
+                    let zoned = ts.to_zoned(tz.clone());
+                    let fmt = if zoned.date() == today { "%H:%M:%S" } else { "%m-%d %H:%M:%S" };
+                    meta.push_str(&zoned.strftime(fmt).to_string());
+                }
+            }
+            let tokens = t.tokens.display_total();
+            if tokens > 0 {
+                if !meta.is_empty() {
+                    meta.push_str(" · ");
+                }
+                let approx = if t.tokens.accounted() == 0 { "~" } else { "" };
+                meta.push_str(&format!("{approx}{} tok", fmt_tokens(tokens)));
+            }
+            meta
+        };
         let flush_hidden = |run: &mut usize, lines: &mut Vec<Line>| {
             if *run > 0 {
                 lines.push(Line::from(Span::styled(
@@ -518,8 +550,9 @@ impl App {
                     ToolDisplay::Collapsed => {
                         flush_hidden(&mut hidden_run, &mut lines);
                         let head: String =
-                            t.text.replace('\n', " ").chars().take(100).collect();
-                        lines.push(Line::from(vec![
+                            t.text.replace('\n', " ").chars().take(80).collect();
+                        let meta = turn_meta(t);
+                        let mut spans = vec![
                             Span::styled(
                                 format!("[{:>4}] ", t.turn_index),
                                 Style::default().fg(Color::DarkGray),
@@ -529,7 +562,14 @@ impl App {
                                 Style::default().fg(Color::Magenta),
                             ),
                             Span::styled(head, Style::default().fg(Color::DarkGray)),
-                        ]));
+                        ];
+                        if !meta.is_empty() {
+                            spans.push(Span::styled(
+                                format!("  {meta}"),
+                                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                            ));
+                        }
+                        lines.push(Line::from(spans));
                         continue;
                     }
                     ToolDisplay::Full => {}
@@ -548,10 +588,18 @@ impl App {
             } else {
                 format!("{label}/{}", t.speaker)
             };
-            lines.push(Line::from(vec![
+            let meta = turn_meta(t);
+            let mut header = vec![
                 Span::styled(format!("[{:>4}] ", t.turn_index), Style::default().fg(Color::DarkGray)),
                 Span::styled(speaker, Style::default().fg(color).add_modifier(Modifier::BOLD)),
-            ]));
+            ];
+            if !meta.is_empty() {
+                header.push(Span::styled(
+                    format!("  {meta}"),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+            lines.push(Line::from(header));
             let text: String = t.text.chars().take(2000).collect();
             for raw_line in text.lines().take(24) {
                 let matched = !needle.is_empty() && raw_line.to_lowercase().contains(&needle);
@@ -680,7 +728,18 @@ mod tests {
         app.open_selected();
         assert!(app.conv.is_some(), "conversation loaded from search hit");
         app.set_screen_for_test(1);
+        app.jump_to_turn(0);
         terminal.draw(|f| app.draw(f)).unwrap();
+        // Turn headers carry timestamp + token meta on the ordinal line.
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol().to_string())
+            .collect();
+        assert!(rendered.contains(" tok"), "token meta missing from turn header");
+        assert!(rendered.contains("07-01"), "timestamp missing from turn header: fixture is 2026-07-01");
         // In-conversation find jumps to a match.
         app.find = "offsets".into();
         app.run_find();
