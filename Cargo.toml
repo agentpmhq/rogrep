@@ -1,0 +1,58 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rogrep-model",
+    "crates/rogrep-parsers",
+    "crates/rogrep-tooltree",
+    "crates/rogrep-store",
+    "crates/rogrep-index",
+    "crates/rogrep-engine",
+    "crates/rogrep",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ssorkin/rogrep"
+rust-version = "1.85"
+
+[workspace.dependencies]
+rogrep-model = { path = "crates/rogrep-model" }
+rogrep-parsers = { path = "crates/rogrep-parsers" }
+rogrep-tooltree = { path = "crates/rogrep-tooltree" }
+rogrep-store = { path = "crates/rogrep-store" }
+rogrep-index = { path = "crates/rogrep-index" }
+rogrep-engine = { path = "crates/rogrep-engine" }
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+jiff = { version = "0.2", features = ["serde"] }
+rayon = "1.10"
+sha2 = "0.10"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+tantivy = "0.26"
+rusqlite = { version = "0.37", features = ["bundled"] }
+clap = { version = "4.5", features = ["derive", "wrap_help"] }
+fd-lock = "4"
+indicatif = "0.18"
+toml = "0.9"
+shell-words = "1"
+regex = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ratatui = "0.29"
+crossterm = "0.28"
+
+# dev
+insta = { version = "1", features = ["yaml", "redactions"] }
+proptest = "1"
+criterion = "0.5"
+tempfile = "3"
+pretty_assertions = "1"
+
+[profile.release]
+lto = "thin"
+strip = "symbols"

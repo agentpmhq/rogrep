@@ -1,0 +1,18 @@
+[package]
+name = "rogrep-model"
+description = "Normalized data model for rogrep: conversations, turns, exchanges"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+jiff.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
