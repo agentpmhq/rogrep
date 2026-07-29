@@ -22,6 +22,12 @@ pub trait Indexer {
     fn apply(&mut self, out: &DriverOutput) -> Result<()>;
     fn remove_conversation(&mut self, conversation_id: &str) -> Result<()>;
     fn commit(&mut self) -> Result<()>;
+    /// Identity of the index generation (schema version etc.). When it
+    /// changes between syncs — e.g. a fresh index directory after a schema
+    /// bump — every file re-derives so the new index is fully populated.
+    fn generation(&self) -> String {
+        "noop".to_string()
+    }
 }
 
 pub struct NoopIndexer;
@@ -123,6 +129,12 @@ pub fn sync(
 
     let checkpoints = store.file_checkpoints()?;
 
+    // A new index generation invalidates every checkpoint: the fresh index
+    // is empty even though the store thinks files are current.
+    let generation = indexer.generation();
+    let full = options.full
+        || store.meta_get("indexer_generation")?.as_deref() != Some(generation.as_str());
+
     // Removed files → drop their conversations.
     let live: std::collections::HashSet<String> = files
         .iter()
@@ -144,7 +156,7 @@ pub fn sync(
     let mut changed: Vec<&DiscoveredFile> = files
         .iter()
         .filter(|f| {
-            if options.full {
+            if full {
                 return true;
             }
             let current_version = provider_for_kind(f.kind).map(|p| p.parser_version());
@@ -179,7 +191,7 @@ pub fn sync(
             .par_iter()
             .map(|f| {
                 let path_str = f.path.to_string_lossy().to_string();
-                let seed = if options.full {
+                let seed = if full {
                     None
                 } else {
                     checkpoints.get(&path_str).map(|cp| cp.state.clone())
@@ -221,6 +233,7 @@ pub fn sync(
         }
     }
 
+    store.meta_set("indexer_generation", &generation)?;
     report.synced = true;
     report.elapsed_ms = started.elapsed().as_millis();
     progress(SyncEvent::Done);
@@ -231,6 +244,9 @@ pub fn sync(
 impl Indexer for Box<dyn Indexer> {
     fn apply(&mut self, out: &DriverOutput) -> Result<()> {
         (**self).apply(out)
+    }
+    fn generation(&self) -> String {
+        (**self).generation()
     }
     fn remove_conversation(&mut self, conversation_id: &str) -> Result<()> {
         (**self).remove_conversation(conversation_id)

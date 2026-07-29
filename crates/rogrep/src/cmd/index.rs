@@ -33,4 +33,8 @@ impl Indexer for TantivyIndexer {
     fn commit(&mut self) -> Result<()> {
         self.batch.commit()
     }
+
+    fn generation(&self) -> String {
+        format!("tantivy-v{}", rogrep_index::INDEX_SCHEMA_VERSION)
+    }
 }

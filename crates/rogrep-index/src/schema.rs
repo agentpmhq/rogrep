@@ -7,7 +7,7 @@ use tantivy::schema::{
     STORED, STRING,
 };
 
-pub const INDEX_SCHEMA_VERSION: u32 = 1;
+pub const INDEX_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone)]
 pub struct Fields {
@@ -18,6 +18,7 @@ pub struct Fields {
     pub exchange_ordinal: tantivy::schema::Field,
     pub ts: tantivy::schema::Field,
     pub role: tantivy::schema::Field,
+    pub visible: tantivy::schema::Field,
     pub turn_facets: tantivy::schema::Field,
     pub cwd: tantivy::schema::Field,
     pub file: tantivy::schema::Field,
@@ -46,6 +47,10 @@ pub fn build_schema() -> (Schema, Fields) {
     let exchange_ordinal = builder.add_u64_field("exchange_ordinal", NumericOptions::default().set_stored().set_fast());
     let ts = builder.add_i64_field("ts", NumericOptions::default().set_indexed().set_stored().set_fast());
     let role = builder.add_text_field("role", STRING | STORED);
+    // "true"/"false": is this turn user-visible content (vs harness-injected
+    // context, synthetic attachments, system noise)? Corpus search filters
+    // to visible turns; conversation-scoped find greps everything.
+    let visible = builder.add_text_field("visible", STRING);
     // Raw facet terms (`tool:bash`, `tool_status:failed`, `git_pr_num:48`).
     let turn_facets = builder.add_text_field("turn_facets", STRING);
     let cwd = builder.add_text_field("cwd", STRING);
@@ -62,6 +67,7 @@ pub fn build_schema() -> (Schema, Fields) {
         exchange_ordinal,
         ts,
         role,
+        visible,
         turn_facets,
         cwd,
         file,

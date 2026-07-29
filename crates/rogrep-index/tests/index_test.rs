@@ -183,3 +183,27 @@ fn date_range_filters() {
     let hits = index.search(&parse_query("flaky"), Some(jan), 10).unwrap();
     assert!(hits.is_empty());
 }
+
+#[test]
+fn injected_context_excluded_from_corpus_search_but_findable() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/edge_cases.jsonl"), None);
+    let cid = claude.conversation.id.as_str().to_string();
+    let (_tmp, index) = build_index(&[&claude]);
+
+    // The fixture's injected reminder and IDE attachment are invisible turns.
+    // Corpus search must not surface conversations through them…
+    let hits = index.search(&parse_query("injected reminder"), None, 10).unwrap();
+    assert!(hits.is_empty(), "injected context leaked into corpus search: {hits:?}");
+    let hits = index.search(&parse_query("broken"), None, 10).unwrap();
+    assert!(hits.is_empty(), "synthetic attachment leaked into corpus search: {hits:?}");
+
+    // …but visible content still matches…
+    let hits = index.search(&parse_query("directory work"), None, 10).unwrap();
+    assert_eq!(hits.len(), 1);
+
+    // …and conversation-scoped find greps EVERYTHING, including context.
+    let r = index.find(&cid, &parse_query("injected reminder"), 10).unwrap();
+    assert_eq!(r.total_turn_hits, 1, "find must keep grep-everything semantics");
+    let r = index.find(&cid, &parse_query("broken"), 10).unwrap();
+    assert_eq!(r.total_turn_hits, 1);
+}

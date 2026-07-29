@@ -51,6 +51,23 @@ impl SearchIndex {
             }
         };
         let reader = index.reader()?;
+        // Retire older schema generations (all derived data). Only touch
+        // sibling directories that are unambiguously versioned index dirs
+        // (`v<N>`) — the parent may be a shared directory.
+        if let (Some(parent), Some(current)) = (dir.parent(), dir.file_name()) {
+            if let Ok(entries) = std::fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let is_version_dir = name
+                        .to_str()
+                        .and_then(|n| n.strip_prefix('v'))
+                        .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()));
+                    if is_version_dir && name != current && entry.path().is_dir() {
+                        let _ = std::fs::remove_dir_all(entry.path());
+                    }
+                }
+            }
+        }
         Ok(SearchIndex {
             index,
             fields,
@@ -128,8 +145,21 @@ impl SearchIndex {
         parsed: &ParsedQuery,
         conversation_id: Option<&str>,
         ts_range: Option<(i64, i64)>,
+        visible_only: bool,
     ) -> Option<Box<dyn Query>> {
         let mut clauses: Vec<(Occur, Box<dyn Query>)> = Vec::new();
+        if visible_only {
+            // Keep harness-injected context (skill catalogs, system prompts,
+            // env blocks) out of corpus results — it conjunctively matches
+            // almost anything.
+            clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.visible, "true"),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
         if let Some(cid) = conversation_id {
             clauses.push((
                 Occur::Must,
@@ -158,9 +188,8 @@ impl SearchIndex {
                 )),
             ));
         }
-        if clauses.is_empty()
-            || (clauses.len() == 1 && conversation_id.is_some())
-        {
+        let scaffold = usize::from(conversation_id.is_some()) + usize::from(visible_only);
+        if clauses.len() <= scaffold {
             return None;
         }
         Some(Box::new(BooleanQuery::new(clauses)))
@@ -174,7 +203,7 @@ impl SearchIndex {
         ts_range: Option<(i64, i64)>,
         candidate_docs: usize,
     ) -> Result<Vec<ConversationMatches>> {
-        let Some(query) = self.build_query(parsed, None, ts_range) else {
+        let Some(query) = self.build_query(parsed, None, ts_range, true) else {
             return Ok(vec![]);
         };
         let searcher = self.searcher()?;
@@ -245,7 +274,7 @@ impl SearchIndex {
         let mut result = FindResult::default();
 
         // Tier 1: strict AND turn hits.
-        if let Some(query) = self.build_query(parsed, Some(conversation_id), None) {
+        if let Some(query) = self.build_query(parsed, Some(conversation_id), None, false) {
             let top = searcher.search(&query, &TopDocs::with_limit(10_000).order_by_score())?;
             let mut hits = Vec::new();
             for (score, addr) in top {
@@ -293,7 +322,7 @@ impl SearchIndex {
                     dates: vec![],
                 };
                 let mut exchanges = HashSet::new();
-                if let Some(q) = self.build_query(&single, Some(conversation_id), None) {
+                if let Some(q) = self.build_query(&single, Some(conversation_id), None, false) {
                     for (_score, addr) in searcher.search(&q, &TopDocs::with_limit(10_000).order_by_score())? {
                         let doc: TantivyDocument = searcher.doc(addr)?;
                         if let Some(ex) = doc
@@ -327,7 +356,7 @@ impl SearchIndex {
                 facets: vec![],
                 dates: vec![],
             };
-            let count = match self.build_query(&single, Some(conversation_id), None) {
+            let count = match self.build_query(&single, Some(conversation_id), None, false) {
                 Some(q) => searcher.search(&q, &Count)?,
                 None => 0,
             };
@@ -417,6 +446,7 @@ impl IndexBatch {
                 self.fields.turn_index => t.turn_index as u64,
                 self.fields.exchange_ordinal => exchange_base + exchange_for(t.turn_index),
                 self.fields.role => t.role.as_str(),
+                self.fields.visible => if rogrep_model::is_visible_turn(t) { "true" } else { "false" },
                 self.fields.project => conv.normalized_project.as_str(),
                 self.fields.provider => conv.agent.as_str(),
             );
