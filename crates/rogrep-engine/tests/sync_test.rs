@@ -162,3 +162,44 @@ fn usage_stats_bucket_daily() {
     assert_eq!(day.exchanges, 2);
     assert_eq!(day.output_tokens, 92);
 }
+
+/// A new index generation (schema bump → fresh empty index) must invalidate
+/// every checkpoint so the new index gets fully repopulated.
+#[test]
+fn index_generation_change_forces_full_rederive() {
+    struct GenIndexer(&'static str);
+    impl rogrep_engine::Indexer for GenIndexer {
+        fn apply(&mut self, _out: &rogrep_parsers::driver::DriverOutput) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn remove_conversation(&mut self, _id: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn commit(&mut self) -> anyhow::Result<()> {
+            Ok(())
+        }
+        fn generation(&self) -> String {
+            self.0.to_string()
+        }
+    }
+
+    let env = setup();
+    let mut store = Store::open(&env.layout.db_path()).unwrap();
+    let config = Config::default();
+    let options = SyncOptions {
+        full: false,
+        home: env.home.clone(),
+    };
+    let r1 = sync(&env.layout, &config, &mut store, &mut GenIndexer("v1"), &options, &mut |_| {}).unwrap();
+    assert_eq!(r1.files_changed, 1);
+    // Same generation, nothing changed → no-op.
+    let r2 = sync(&env.layout, &config, &mut store, &mut GenIndexer("v1"), &options, &mut |_| {}).unwrap();
+    assert_eq!(r2.files_changed, 0);
+    // New generation → every file re-derives even though bytes are unchanged.
+    let r3 = sync(&env.layout, &config, &mut store, &mut GenIndexer("v2"), &options, &mut |_| {}).unwrap();
+    assert_eq!(r3.files_changed, 1);
+    assert_eq!(r3.turns_written, 7);
+    // And the new generation is remembered.
+    let r4 = sync(&env.layout, &config, &mut store, &mut GenIndexer("v2"), &options, &mut |_| {}).unwrap();
+    assert_eq!(r4.files_changed, 0);
+}
