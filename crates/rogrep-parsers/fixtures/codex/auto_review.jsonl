@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-03T09:00:00.000Z","type":"session_meta","payload":{"id":"judge-1","timestamp":"2026-07-03T09:00:00.000Z","cwd":"/home/u/src/proj","originator":"codex-tui","source":{"subagent":{"other":"guardian"}},"thread_source":"subagent","model_provider":"openai"}}
+{"timestamp":"2026-07-03T09:00:01.000Z","type":"turn_context","payload":{"turn_id":"j-001","cwd":"/home/u/src/proj","model":"codex-auto-review"}}
+{"timestamp":"2026-07-03T09:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"The following is the agent history whose request action you are assessing: zebrajudge unique marker text"}]}}
+{"timestamp":"2026-07-03T09:00:03.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"{\"risk_level\":\"low\",\"outcome\":\"allow\"}"}]}}

@@ -71,6 +71,9 @@ pub enum Origin {
     Interactive,
     Subagent,
     Scheduled,
+    /// Machine-generated evaluation/moderation sessions (e.g. codex
+    /// auto-review "guardian" judges) — real API usage, but not user work.
+    Auxiliary,
 }
 
 impl Origin {
@@ -79,6 +82,7 @@ impl Origin {
             Origin::Interactive => "interactive",
             Origin::Subagent => "subagent",
             Origin::Scheduled => "scheduled",
+            Origin::Auxiliary => "auxiliary",
         }
     }
 }

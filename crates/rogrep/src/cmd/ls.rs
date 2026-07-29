@@ -47,7 +47,12 @@ pub fn run(args: LsArgs) -> Result<()> {
             })
             .unwrap_or_else(|| "?".into());
         let title = r.title.clone().unwrap_or_default();
-        let marker = if r.is_subagent { " [sub]" } else { "" };
+        let marker = match (r.origin.as_str(), r.is_subagent) {
+            ("auxiliary", _) => " [aux]",
+            ("scheduled", _) => " [sched]",
+            (_, true) => " [sub]",
+            _ => "",
+        };
         println!(
             "{:<28} {:<8} {:>6} {:>5}  {:<19} {}{}",
             r.id,
