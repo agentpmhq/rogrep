@@ -28,6 +28,7 @@ impl Provider for GenericProvider {
             project: String::new(),
             cwd_seed: None,
             subagent: None,
+            default_ts: None,
         }
     }
 

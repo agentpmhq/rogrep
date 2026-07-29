@@ -24,6 +24,9 @@ pub struct SourceInfo {
     /// Path-derived cwd seed (overridable by the first in-record cwd).
     pub cwd_seed: Option<String>,
     pub subagent: Option<SubagentLink>,
+    /// Fallback conversation timestamp for providers whose records carry no
+    /// timestamps (e.g. grok, where the uuid7 session id encodes one).
+    pub default_ts: Option<UnixMillis>,
 }
 
 /// Mutable per-record context handed to providers.
@@ -61,6 +64,13 @@ impl<'a> ParseCtx<'a> {
     pub fn set_cwd(&mut self, cwd: String) {
         if !cwd.trim().is_empty() {
             self.signals.cwd = Some(cwd);
+        }
+    }
+
+    /// Rewrite a pending cwd signal (cowork sandbox-path repair).
+    pub fn map_cwd(&mut self, f: impl Fn(&str) -> String) {
+        if let Some(cwd) = &self.signals.cwd {
+            self.signals.cwd = Some(f(cwd));
         }
     }
 
@@ -373,6 +383,10 @@ fn run<R: io::BufRead>(
 
     // Full-file summary = seed frozen + all turns this run.
     let mut all_rollup = rollup(&seed.frozen, &turns);
+    if all_rollup.first_seen.is_none() {
+        all_rollup.first_seen = info.default_ts;
+        all_rollup.last_seen = info.default_ts;
+    }
     all_rollup.malformed_lines = seed.frozen.malformed_lines + malformed_tail;
     out_state.frozen.turn_count = out_state.next_turn_index;
 

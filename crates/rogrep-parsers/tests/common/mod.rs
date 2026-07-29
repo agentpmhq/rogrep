@@ -17,7 +17,14 @@ pub fn canonical_path(kind: AgentKind, name: &str) -> String {
         AgentKind::Cursor => {
             format!("/home/u/.cursor/projects/home-u-src-proj/agent-transcripts/{name}")
         }
-        AgentKind::Grok => format!("/home/u/.grok/sessions/%2Fhome%2Fu%2Fsrc%2Fproj/{name}"),
+        AgentKind::Grok => {
+            format!("/home/u/.grok/sessions/%2Fhome%2Fu%2Fsrc%2Fproj/sess-1/{name}")
+        }
+        AgentKind::Hermes => format!("/data/rogrep/spool/hermes/{name}"),
+        AgentKind::Opencode => format!("/data/rogrep/spool/opencode/{name}"),
+        AgentKind::ClaudeCowork => format!(
+            "/Users/u/Library/Application Support/Claude/local-agent-mode-sessions/session/s1/.claude/projects/-p/{name}"
+        ),
         _ => format!("/home/u/logs/{name}"),
     }
 }

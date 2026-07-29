@@ -100,7 +100,19 @@ pub fn sync(
         }
     };
 
-    let extra_roots: Vec<PathBuf> = config.sources.extra_roots.iter().map(PathBuf::from).collect();
+    // Materialize SQLite-backed sessions (hermes, opencode) into spool
+    // JSONL so they flow through the same parser pipeline.
+    let spool_root = layout.root.join("spool");
+    let spool_report = rogrep_parsers::spool::export_all(&options.home, &spool_root);
+    report.errors.extend(spool_report.errors);
+
+    let mut extra_roots: Vec<PathBuf> = config.sources.extra_roots.iter().map(PathBuf::from).collect();
+    for agent in ["hermes", "opencode"] {
+        let dir = spool_root.join(agent);
+        if dir.is_dir() {
+            extra_roots.push(dir);
+        }
+    }
     let disabled: Vec<&str> = config.sources.disabled_providers.iter().map(|s| s.as_str()).collect();
     let files: Vec<DiscoveredFile> = discover_files(&options.home, &extra_roots)
         .into_iter()

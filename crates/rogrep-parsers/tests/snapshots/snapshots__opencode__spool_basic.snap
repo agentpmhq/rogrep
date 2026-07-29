@@ -1,0 +1,170 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_0529fde429aceb4bd97bcfc2
+agent: opencode
+source_path: /data/rogrep/spool/opencode/spool_basic.jsonl
+title: Review deriver architecture
+model: glm-5.2
+project: home
+normalized_project: "-home-u-src-proj"
+cwd: /home/u/src/proj
+first_seen: 1782311855413
+last_seen: 1782311910000
+tokens:
+  input: 500
+  output: 300
+  cache_creation: 50
+  cache_read: 2000
+  reasoning_output: 100
+  estimated: 12
+malformed_lines: 0
+origin: interactive
+turns:
+  - turn_index: 0
+    role: user
+    speaker: user
+    text: please review our deriver code
+    ts: 1782311855413
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 215
+      byte_end: 387
+  - turn_index: 1
+    role: assistant
+    speaker: assistant
+    text: Looking at the dirty-file workflow now.
+    ts: 1782311857000
+    cwd: /home/u/src/proj
+    model: glm-5.2
+    tokens:
+      input: 500
+      output: 300
+      cache_creation: 50
+      cache_read: 2000
+      reasoning_output: 100
+      estimated: 0
+    source:
+      line: 4
+      byte_start: 570
+      byte_end: 761
+  - turn_index: 2
+    role: tool
+    speaker: bash
+    text: "{\"command\":\"rg -n dirty internal/\"}"
+    ts: 1782311858000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 5
+      byte_start: 761
+      byte_end: 1077
+    tool:
+      direction: use
+      name: bash
+      pair_id: oc_1
+      status: succeeded
+      input_fields:
+        command: rg -n dirty internal/
+  - turn_index: 3
+    role: tool
+    speaker: tool_result
+    text: "internal/deriver.go:12: dirty files"
+    ts: 1782311858000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 8
+    source:
+      line: 5
+      byte_start: 761
+      byte_end: 1077
+    tool:
+      direction: output
+      name: tool_result
+      pair_id: oc_1
+      status: succeeded
+      exit_code: 0
+  - turn_index: 4
+    role: user
+    speaker: user
+    text: "looks good, write it up"
+    ts: 1782311900000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 7
+      byte_start: 1351
+      byte_end: 1516
+  - turn_index: 5
+    role: tool
+    speaker: write
+    text: "{\"filePath\":\"/home/u/src/proj/notes.md\"}"
+    ts: 1782311910000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 8
+      byte_start: 1516
+      byte_end: 1808
+    tool:
+      direction: use
+      name: write
+      pair_id: oc_2
+      status: failed
+      input_fields:
+        file_path: /home/u/src/proj/notes.md
+  - turn_index: 6
+    role: tool
+    speaker: tool_result
+    text: permission denied
+    ts: 1782311910000
+    cwd: /home/u/src/proj
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 4
+    source:
+      line: 8
+      byte_start: 1516
+      byte_end: 1808
+    tool:
+      direction: output
+      name: tool_result
+      pair_id: oc_2
+      status: failed

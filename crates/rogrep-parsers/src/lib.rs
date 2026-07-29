@@ -9,6 +9,7 @@ pub mod providers;
 pub mod reader;
 pub mod record;
 pub mod special;
+pub mod spool;
 pub mod state;
 
 pub use discovery::{discover_files, DiscoveredFile};

@@ -27,3 +27,4 @@ insta.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
+rusqlite.workspace = true

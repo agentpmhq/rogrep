@@ -35,3 +35,23 @@ fn generic_openai_shape() {
 fn malformed_mixed() {
     snap(AgentKind::Claude, "malformed/mixed_valid_invalid.jsonl");
 }
+
+#[test]
+fn cursor_transcript() {
+    snap(AgentKind::Cursor, "cursor/transcript.jsonl");
+}
+
+#[test]
+fn grok_chat_history() {
+    snap(AgentKind::Grok, "grok/chat_history.jsonl");
+}
+
+#[test]
+fn hermes_spool() {
+    snap(AgentKind::Hermes, "hermes/spool_basic.jsonl");
+}
+
+#[test]
+fn opencode_spool() {
+    snap(AgentKind::Opencode, "opencode/spool_basic.jsonl");
+}

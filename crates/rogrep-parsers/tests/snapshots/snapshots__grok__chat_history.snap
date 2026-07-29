@@ -1,0 +1,126 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_239d9c1d32e0aeb86e744654
+agent: grok
+source_path: /home/u/.grok/sessions/%2Fhome%2Fu%2Fsrc%2Fproj/sess-1/chat_history.jsonl
+model: grok-4.3
+project: home
+normalized_project: "-home-u-src-proj"
+cwd: /home/u/src/proj
+tokens:
+  input: 0
+  output: 0
+  cache_creation: 0
+  cache_read: 0
+  reasoning_output: 0
+  estimated: 8
+malformed_lines: 0
+origin: interactive
+turns:
+  - turn_index: 0
+    role: system
+    speaker: system
+    text: You are Grok 4.3 released by xAI in April 2026. You are an interactive CLI tool.
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 1
+      byte_start: 0
+      byte_end: 111
+  - turn_index: 1
+    role: system
+    speaker: system
+    text: "<user_info>\nOS Version: linux\nWorkspace Path: /home/u/src/proj\n</user_info>"
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 111
+      byte_end: 243
+    synthetic_context: true
+  - turn_index: 2
+    role: user
+    speaker: user
+    text: find the retry logic
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 3
+      byte_start: 243
+      byte_end: 317
+  - turn_index: 3
+    role: tool
+    speaker: run_terminal_command
+    text: "{\"command\":\"rg -n retry src/\",\"description\":\"Search for retry\"}"
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 4
+      byte_start: 317
+      byte_end: 548
+    tool:
+      direction: use
+      name: run_terminal_cmd
+      pair_id: call-1
+      status: succeeded
+      input_fields:
+        command: rg -n retry src/
+  - turn_index: 4
+    role: tool
+    speaker: tool_result
+    text: "src/net.rs:42: retry_with_backoff()"
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 8
+    source:
+      line: 5
+      byte_start: 548
+      byte_end: 643
+    tool:
+      direction: output
+      name: tool_result
+      pair_id: call-1
+      status: succeeded
+  - turn_index: 5
+    role: assistant
+    speaker: assistant
+    text: The retry logic lives in src/net.rs line 42.
+    model: grok-4.3
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 6
+      byte_start: 643
+      byte_end: 737

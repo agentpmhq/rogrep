@@ -1,0 +1,5 @@
+{"type":"session_meta","session_id":"20260614_211349_610b28","source":"hermes","cwd":"/home/u/src/proj","title":"Disable Swap for OOM Killer","model":"openai/gpt-5.5","parent_session_id":null,"started_at":1776440302.0}
+{"type":"message","role":"user","content":"why is the oom killer not firing?","tool_calls":null,"tool_call_id":null,"tool_name":null,"timestamp":1776440302.111,"token_count":null}
+{"type":"message","role":"assistant","content":"Let me check swap settings.","tool_calls":"[{\"id\":\"hc_1\",\"function\":{\"name\":\"bash\",\"arguments\":\"{\\\"command\\\":\\\"swapon --show\\\"}\"}}]","tool_call_id":null,"tool_name":null,"timestamp":1776440310.5,"token_count":42}
+{"type":"message","role":"tool","content":"NAME      TYPE SIZE USED\n/swapfile file  8G   7.9G","tool_calls":null,"tool_call_id":"hc_1","tool_name":"bash","timestamp":1776440312.0,"token_count":null}
+{"type":"message","role":"assistant","content":"Swap is nearly full; the OOM killer defers while swap remains.","tool_calls":null,"tool_call_id":null,"tool_name":null,"timestamp":1776440320.0,"token_count":31}

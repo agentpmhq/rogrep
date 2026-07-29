@@ -1,0 +1,114 @@
+---
+source: crates/rogrep-parsers/tests/snapshots.rs
+assertion_line: 11
+expression: out.conversation
+---
+id: rg_70d872f3ae011c7f33375532
+agent: cursor
+source_path: /home/u/.cursor/projects/home-u-src-proj/agent-transcripts/transcript.jsonl
+model: cursor
+project: home-u-src-proj
+normalized_project: "-home-u-src-proj"
+cwd: /home/u/src/proj
+first_seen: 1779915960000
+last_seen: 1779915960000
+tokens:
+  input: 0
+  output: 0
+  cache_creation: 0
+  cache_read: 0
+  reasoning_output: 0
+  estimated: 4
+malformed_lines: 0
+origin: interactive
+turns:
+  - turn_index: 0
+    role: user
+    speaker: user
+    text: Explain this codebase.
+    ts: 1779915960000
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 1
+      byte_start: 0
+      byte_end: 180
+  - turn_index: 1
+    role: assistant
+    speaker: assistant
+    text: Let me explore the entry points.
+    model: cursor
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 180
+      byte_end: 366
+  - turn_index: 2
+    role: tool
+    speaker: read_file
+    text: "{\"path\":\"src/main.rs\"}"
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 2
+      byte_start: 180
+      byte_end: 366
+    tool:
+      direction: use
+      name: read_file
+      pair_id: cur_1
+      status: succeeded
+      input_fields:
+        path: src/main.rs
+  - turn_index: 3
+    role: tool
+    speaker: tool_result
+    text: "fn main() { run() }"
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 4
+    source:
+      line: 3
+      byte_start: 366
+      byte_end: 508
+    tool:
+      direction: output
+      name: tool_result
+      pair_id: cur_1
+      status: succeeded
+  - turn_index: 4
+    role: assistant
+    speaker: assistant
+    text: The entry point is src/main.rs which calls run().
+    model: cursor
+    tokens:
+      input: 0
+      output: 0
+      cache_creation: 0
+      cache_read: 0
+      reasoning_output: 0
+      estimated: 0
+    source:
+      line: 4
+      byte_start: 508
+      byte_end: 628

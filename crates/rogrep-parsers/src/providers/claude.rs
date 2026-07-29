@@ -67,6 +67,7 @@ pub fn source_info_for_claude_path(path: &str) -> SourceInfo {
         project: project_slug,
         cwd_seed,
         subagent,
+        default_ts: None,
     }
 }
 

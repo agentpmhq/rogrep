@@ -131,3 +131,11 @@ fn multi_stage_growth() {
     assert_eq!(full.conversation.turns, m123);
     assert_eq!(full.state, r3.state);
 }
+
+#[test]
+fn new_providers_all_line_splits() {
+    check_all_splits(AgentKind::Cursor, "cursor/transcript.jsonl");
+    check_all_splits(AgentKind::Grok, "grok/chat_history.jsonl");
+    check_all_splits(AgentKind::Hermes, "hermes/spool_basic.jsonl");
+    check_all_splits(AgentKind::Opencode, "opencode/spool_basic.jsonl");
+}

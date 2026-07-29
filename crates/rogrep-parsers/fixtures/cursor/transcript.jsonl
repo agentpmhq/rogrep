@@ -1,0 +1,4 @@
+{"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Wednesday, May 27, 2026, 9:06 PM (UTC)</timestamp>\n<user_query>\nExplain this codebase.\n</user_query>"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Let me explore the entry points."},{"type":"tool_use","id":"cur_1","name":"read_file","input":{"path":"src/main.rs"}}]}}
+{"role":"user","message":{"content":[{"type":"tool_result","tool_use_id":"cur_1","content":[{"type":"text","text":"fn main() { run() }"}]}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"The entry point is src/main.rs which calls run()."}]}}

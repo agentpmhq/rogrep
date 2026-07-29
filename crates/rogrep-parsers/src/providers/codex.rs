@@ -44,6 +44,7 @@ impl Provider for CodexProvider {
             project: "home".to_string(), // repaired via cwd by normalized_project
             cwd_seed: None,
             subagent: None,
+            default_ts: None,
         }
     }
 

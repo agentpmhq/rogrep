@@ -1,0 +1,6 @@
+{"type":"system","content":"You are Grok 4.3 released by xAI in April 2026. You are an interactive CLI tool."}
+{"type":"user","content":[{"type":"text","text":"<user_info>\nOS Version: linux\nWorkspace Path: /home/u/src/proj\n</user_info>"}]}
+{"type":"user","content":[{"type":"text","text":"find the retry logic"}]}
+{"type":"assistant","content":"","reasoning":{"text":"internal","encrypted":"xxx"},"tool_calls":[{"id":"call-1","name":"run_terminal_command","arguments":"{\"command\":\"rg -n retry src/\",\"description\":\"Search for retry\"}"}]}
+{"type":"tool_result","tool_call_id":"call-1","content":"src/net.rs:42: retry_with_backoff()"}
+{"type":"assistant","content":"The retry logic lives in src/net.rs line 42.","tool_calls":[]}
