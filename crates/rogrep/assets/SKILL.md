@@ -21,7 +21,7 @@ description: Search and analyze local coding-agent session history (Claude Code,
 
 ## Search And Drill In
 
-- `rogrep search QUERY` (or bare `rogrep QUERY`) searches all turns. Include exact identifiers when known: PR number, branch, file path, error text. A bare `rg_…` id resolves directly; `rg_…#eN` shows that exchange.
+- `rogrep search QUERY` (or bare `rogrep QUERY`) searches all turns. Include exact identifiers when known: PR number, branch, file path, error text. A bare `rg_…` id resolves directly; `rg_…#eN` shows that exchange; use `rogrep -- rg_…` to instead search for the id as literal text (e.g. find conversations mentioning it).
 - Query grammar: bare terms AND together; `"quoted phrases"` match in order; `key:value` facets filter. Unknown `key:` tokens (URLs, `data:` URIs) are treated as literal text — only known facet keys activate.
 - Facets: `provider:` (claude|codex|cursor|grok|hermes|opencode), `model:`, `project:`, `cwd:`, `file:`, `role:`, `tool:` (tool name), `tool_cmd:` (shell executable, e.g. `tool_cmd:git`), `tool_status:` (succeeded|failed|rejected), `tool_mutating:true`, `git_cmd:` (commit|push|…), `git_pr:` (create|merge|…), `git_pr_num:N`, `git_commit:SHA`, `git_branch:`, `is:` (interrupted|compacted|notification), `since:`/`before:` (YYYY-MM-DD or Nd, e.g. `since:7d`).
 - `rogrep find CONVERSATION_ID QUERY` — conjunction find inside one conversation. Reports strict turn hits first; when no single turn has every term, it reports exchanges where all terms appear ("passage" hits, with ready-to-run `rogrep show rg_…#eN` commands); per-term counts show which term narrowed the query.
