@@ -121,6 +121,13 @@ Design invariants worth knowing:
 Adding a provider = one module in `rogrep-parsers/src/providers/`, a
 registry entry, an `AgentKind` variant, and fixtures with snapshot tests.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) — PR workflow, testing (including
+the incremental-parse invariant and insta snapshots), the version-bump
+discipline for derived data, and how releases are cut. Coding agents:
+[AGENTS.md](AGENTS.md).
+
 ## License
 
 Apache-2.0.
