@@ -25,8 +25,10 @@ pub fn run(args: FindArgs) -> Result<()> {
     if parsed.is_empty() {
         anyhow::bail!("empty query");
     }
+    let tz = jiff::tz::TimeZone::system();
+    let ts_range = super::dates::resolve_dates(&parsed.dates, None, &tz)?;
     let index = super::index::open_search_index(&layout)?;
-    let result = index.find(&row.id, &parsed, args.limit)?;
+    let result = index.find(&row.id, &parsed, ts_range, args.limit)?;
 
     if args.json {
         println!(
@@ -37,7 +39,7 @@ pub fn run(args: FindArgs) -> Result<()> {
                 "command": "find",
                 "conversation_id": row.id,
                 "query": {"raw": raw_query, "terms": parsed.terms, "phrases": parsed.phrases,
-                          "facets": parsed.facets},
+                          "facets": parsed.facets, "regexes": parsed.regexes},
                 "result": result,
             })
         );

@@ -51,16 +51,9 @@ pub fn resolve_tz(spec: &Option<String>) -> Result<TimeZone> {
 
 pub fn parse_since(spec: &Option<String>, tz: &TimeZone) -> Result<Option<i64>> {
     let Some(spec) = spec else { return Ok(None) };
-    let spec = spec.trim();
-    if let Some(days) = spec.strip_suffix('d').and_then(|d| d.parse::<i64>().ok()) {
-        let now = jiff::Timestamp::now();
-        return Ok(Some(now.as_millisecond() - days * 86_400_000));
-    }
-    if let Ok(date) = spec.parse::<jiff::civil::Date>() {
-        let zoned = date.to_zoned(tz.clone())?;
-        return Ok(Some(zoned.timestamp().as_millisecond()));
-    }
-    anyhow::bail!("cannot parse --since {spec}; use YYYY-MM-DD or Nd")
+    super::dates::parse_date_ms(spec, tz)
+        .map(Some)
+        .map_err(|_| anyhow::anyhow!("cannot parse --since {spec}; use YYYY-MM-DD or Nd"))
 }
 
 fn fmt_tokens(n: u64) -> String {

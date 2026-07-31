@@ -132,8 +132,19 @@ impl App {
             self.status = format!("{} recent conversations — type to search", self.recent.len());
             return;
         }
-        match self.index.search(&parsed, None, 300) {
-            Ok(mut matches) => {
+        let ts_range = match crate::cmd::dates::resolve_dates(
+            &parsed.dates,
+            None,
+            &jiff::tz::TimeZone::system(),
+        ) {
+            Ok(range) => range,
+            Err(e) => {
+                self.status = format!("search error: {e}");
+                return;
+            }
+        };
+        match self.index.search(&parsed, ts_range, 300) {
+            Ok((mut matches, _meta)) => {
                 // Recency-decayed relevance, same as the CLI.
                 let now = jiff::Timestamp::now().as_millisecond();
                 for m in &mut matches {

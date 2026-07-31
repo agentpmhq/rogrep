@@ -4,8 +4,8 @@
 //! parse watermark (`replace_from`) and re-adds the tail — identical to the
 //! store's tail refresh, idempotent under crash-redo.
 
-use crate::excerpt::{excerpt_for_terms, Highlight, EXCERPT_MAX_CHARS};
-use crate::query::{facet_glob_regex, ParsedQuery};
+use crate::excerpt::{excerpt_for_matchers, Highlight, Matcher, EXCERPT_MAX_CHARS};
+use crate::query::{facet_glob_regex, regex_token, ParsedQuery};
 use crate::schema::{build_schema, Fields, INDEX_SCHEMA_VERSION};
 use anyhow::{Context, Result};
 use rogrep_parsers::driver::DriverOutput;
@@ -14,9 +14,16 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Bound;
 use std::path::{Path, PathBuf};
 use tantivy::collector::{Count, TopDocs};
-use tantivy::query::{BooleanQuery, Occur, PhraseQuery, Query, RangeQuery, RegexQuery, TermQuery};
+use tantivy::query::{
+    AllQuery, BooleanQuery, Occur, PhraseQuery, Query, RangeQuery, RegexQuery, TermQuery,
+};
 use tantivy::schema::{IndexRecordOption, Value};
-use tantivy::{doc, Index, IndexWriter, TantivyDocument, Term};
+use tantivy::{doc, DocAddress, Index, IndexWriter, Order, TantivyDocument, Term};
+
+/// Upper bound on stored-text fetches when a query needs regex
+/// post-filtering; regex-only queries scan the most recent turns up to
+/// this cap.
+pub const REGEX_SCAN_CAP: usize = 20_000;
 
 pub struct SearchIndex {
     pub index: Index,
@@ -118,15 +125,33 @@ impl SearchIndex {
     }
 
     fn facet_clause(&self, key: &str, value: &str) -> Option<Box<dyn Query>> {
-        let (field, term_value): (tantivy::schema::Field, String) = match key {
-            "provider" | "agent" => (self.fields.provider, value.to_string()),
-            "origin" => (self.fields.origin, value.to_string()),
-            "model" => (self.fields.model, value.to_string()),
-            "project" => (self.fields.project, value.to_string()),
-            "cwd" => (self.fields.cwd, value.to_string()),
-            "file" => (self.fields.file, value.to_string()),
-            "role" => (self.fields.role, value.to_string()),
-            _ => (self.fields.turn_facets, format!("{key}:{value}")),
+        let (field, is_token): (tantivy::schema::Field, bool) = match key {
+            "provider" | "agent" => (self.fields.provider, false),
+            "origin" => (self.fields.origin, false),
+            "model" => (self.fields.model, false),
+            "project" => (self.fields.project, false),
+            "cwd" => (self.fields.cwd, false),
+            "file" => (self.fields.file, false),
+            "role" => (self.fields.role, false),
+            _ => (self.fields.turn_facets, true),
+        };
+        // A `/pattern/` facet value regex-matches the whole indexed value
+        // (tantivy term regexes are anchored). An invalid pattern falls
+        // through to a TermQuery on the raw value, which matches nothing.
+        if let Some(pat) = regex_token(value) {
+            let pattern = if is_token {
+                format!("{key}:(?:{pat})")
+            } else {
+                pat.to_string()
+            };
+            if let Ok(q) = RegexQuery::from_pattern(&pattern, field) {
+                return Some(Box::new(q));
+            }
+        }
+        let term_value = if is_token {
+            format!("{key}:{value}")
+        } else {
+            value.to_string()
         };
         if let Some(re) = facet_glob_regex(&term_value) {
             return RegexQuery::from_pattern(&re, field)
@@ -182,14 +207,37 @@ impl SearchIndex {
                 )),
             ));
         }
+        let mut real = 0usize; // clauses beyond the visible/aux/cid scaffold
+        let mut negated = 0usize;
         for term in parsed.terms.iter().chain(parsed.phrases.iter()) {
             if let Some(q) = self.text_matcher(term) {
                 clauses.push((Occur::Must, q));
+                real += 1;
             }
         }
         for (key, value) in &parsed.facets {
+            // subagent:/is:subagent map onto the origin field (subagent is
+            // an origin value, not an emitted turn-facet token).
+            if key == "subagent" || (key == "is" && value == "subagent") {
+                let truthy =
+                    key == "is" || matches!(value.as_str(), "true" | "1" | "yes" | "subagent");
+                let falsey = matches!(value.as_str(), "false" | "0" | "no" | "normal");
+                let term: Box<dyn Query> = Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.origin, "subagent"),
+                    IndexRecordOption::Basic,
+                ));
+                if truthy {
+                    clauses.push((Occur::Must, term));
+                    real += 1;
+                } else if falsey {
+                    clauses.push((Occur::MustNot, term));
+                    negated += 1;
+                }
+                continue;
+            }
             if let Some(q) = self.facet_clause(key, value) {
                 clauses.push((Occur::Must, q));
+                real += 1;
             }
         }
         if let Some((from, to)) = ts_range {
@@ -200,10 +248,16 @@ impl SearchIndex {
                     Bound::Excluded(Term::from_field_i64(self.fields.ts, to)),
                 )),
             ));
+            real += 1;
         }
-        let scaffold = usize::from(conversation_id.is_some()) + usize::from(visible_only);
-        if clauses.len() <= scaffold {
-            return None;
+        if real == 0 {
+            // Regexes are enforced by post-filtering stored text, and
+            // MustNot clauses match nothing on their own — both need a
+            // match-all base to select candidates from.
+            if parsed.regexes.is_empty() && negated == 0 {
+                return None;
+            }
+            clauses.push((Occur::Must, Box::new(AllQuery)));
         }
         Some(Box::new(BooleanQuery::new(clauses)))
     }
@@ -215,18 +269,47 @@ impl SearchIndex {
         parsed: &ParsedQuery,
         ts_range: Option<(i64, i64)>,
         candidate_docs: usize,
-    ) -> Result<Vec<ConversationMatches>> {
+    ) -> Result<(Vec<ConversationMatches>, SearchMeta)> {
+        let mut meta = SearchMeta::default();
+        let regexes = parsed.compile_regexes()?;
         let Some(query) = self.build_query(parsed, None, ts_range, true) else {
-            return Ok(vec![]);
+            return Ok((vec![], meta));
         };
         let searcher = self.searcher()?;
-        let (top, total) = searcher
-            .search(&query, &(TopDocs::with_limit(candidate_docs.max(1)).order_by_score(), Count))
-            .context("search")?;
+        // Regexes match full stored text, which term queries can't narrow —
+        // widen the candidate pool up to the scan cap and post-filter.
+        let limit = if regexes.is_empty() {
+            candidate_docs.max(1)
+        } else {
+            candidate_docs.max(REGEX_SCAN_CAP)
+        };
+        // A regex-only query has no scoring signal (every clause is a
+        // filter), so take the most recent turns instead of BM25 order.
+        let unranked =
+            !regexes.is_empty() && parsed.terms.is_empty() && parsed.phrases.is_empty();
+        let (top, total): (Vec<(f32, DocAddress)>, usize) = if unranked {
+            let collector = TopDocs::with_limit(limit).order_by_fast_field::<i64>("ts", Order::Desc);
+            let (hits, total) = searcher.search(&query, &(collector, Count)).context("search")?;
+            (hits.into_iter().map(|(_ts, addr)| (1.0, addr)).collect(), total)
+        } else {
+            searcher
+                .search(&query, &(TopDocs::with_limit(limit).order_by_score(), Count))
+                .context("search")?
+        };
+        meta.scan_capped = !regexes.is_empty() && total > limit;
         let mut grouped: BTreeMap<String, ConversationMatches> = BTreeMap::new();
-        let highlight = parsed.highlight_terms();
+        let mut matchers: Vec<Matcher> =
+            parsed.highlight_terms().into_iter().map(Matcher::Literal).collect();
+        matchers.extend(regexes.iter().cloned().map(Matcher::Regex));
         for (score, addr) in top {
             let doc: TantivyDocument = searcher.doc(addr)?;
+            let text = doc
+                .get_first(self.fields.text)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
+            if !regexes.iter().all(|re| re.is_match(text)) {
+                continue;
+            }
             let cid = doc
                 .get_first(self.fields.conversation_id)
                 .and_then(|v| v.as_str())
@@ -254,11 +337,7 @@ impl SearchIndex {
             }
             if score > entry.best_score || entry.best.is_none() {
                 entry.best_score = score;
-                let text = doc
-                    .get_first(self.fields.text)
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_default();
-                let (excerpt, highlights) = excerpt_for_terms(text, &highlight, EXCERPT_MAX_CHARS);
+                let (excerpt, highlights) = excerpt_for_matchers(text, &matchers, EXCERPT_MAX_CHARS);
                 entry.best = Some(TurnHit {
                     turn_index,
                     exchange_ordinal,
@@ -271,8 +350,7 @@ impl SearchIndex {
         }
         let mut out: Vec<ConversationMatches> = grouped.into_values().collect();
         out.sort_by(|a, b| b.best_score.total_cmp(&a.best_score));
-        let _ = total;
-        Ok(out)
+        Ok((out, meta))
     }
 
     /// Conversation-scoped find with the three-tier result model.
@@ -280,14 +358,18 @@ impl SearchIndex {
         &self,
         conversation_id: &str,
         parsed: &ParsedQuery,
+        ts_range: Option<(i64, i64)>,
         limit: usize,
     ) -> Result<FindResult> {
         let searcher = self.searcher()?;
-        let highlight = parsed.highlight_terms();
+        let regexes = parsed.compile_regexes()?;
+        let mut matchers: Vec<Matcher> =
+            parsed.highlight_terms().into_iter().map(Matcher::Literal).collect();
+        matchers.extend(regexes.iter().cloned().map(Matcher::Regex));
         let mut result = FindResult::default();
 
         // Tier 1: strict AND turn hits.
-        if let Some(query) = self.build_query(parsed, Some(conversation_id), None, false) {
+        if let Some(query) = self.build_query(parsed, Some(conversation_id), ts_range, false) {
             let top = searcher.search(&query, &TopDocs::with_limit(10_000).order_by_score())?;
             let mut hits = Vec::new();
             for (score, addr) in top {
@@ -296,7 +378,10 @@ impl SearchIndex {
                     .get_first(self.fields.text)
                     .and_then(|v| v.as_str())
                     .unwrap_or_default();
-                let (excerpt, highlights) = excerpt_for_terms(text, &highlight, EXCERPT_MAX_CHARS);
+                if !regexes.iter().all(|re| re.is_match(text)) {
+                    continue;
+                }
+                let (excerpt, highlights) = excerpt_for_matchers(text, &matchers, EXCERPT_MAX_CHARS);
                 hits.push(TurnHit {
                     turn_index: doc
                         .get_first(self.fields.turn_index)
@@ -318,41 +403,70 @@ impl SearchIndex {
             result.turn_hits = hits;
         }
 
-        // Per-term hit sets (tier 2 + 3). Facets participate as constraints.
-        let text_needles: Vec<String> = parsed
+        // Per-needle hit sets (tier 2 + 3): every term, phrase, and regex
+        // is one needle. Facets participate as constraints in tier 2.
+        struct Needle {
+            label: String,
+            query: ParsedQuery,
+            filter: Option<regex::Regex>,
+        }
+        let mut needles: Vec<Needle> = parsed
             .terms
             .iter()
             .chain(parsed.phrases.iter())
-            .cloned()
+            .map(|t| Needle {
+                label: t.clone(),
+                query: ParsedQuery { terms: vec![t.clone()], ..Default::default() },
+                filter: None,
+            })
             .collect();
-        if text_needles.len() > 1 && result.turn_hits.is_empty() {
-            let mut per_term_exchanges: Vec<HashSet<u32>> = Vec::new();
-            for needle in &text_needles {
-                let single = ParsedQuery {
-                    terms: vec![needle.clone()],
-                    phrases: vec![],
-                    facets: parsed.facets.clone(),
-                    dates: vec![],
-                };
-                let mut exchanges = HashSet::new();
-                if let Some(q) = self.build_query(&single, Some(conversation_id), None, false) {
-                    for (_score, addr) in searcher.search(&q, &TopDocs::with_limit(10_000).order_by_score())? {
-                        let doc: TantivyDocument = searcher.doc(addr)?;
-                        if let Some(ex) = doc
-                            .get_first(self.fields.exchange_ordinal)
-                            .and_then(|v| v.as_u64())
-                        {
-                            exchanges.insert(ex as u32);
+        needles.extend(parsed.regexes.iter().zip(&regexes).map(|(pat, re)| Needle {
+            label: format!("/{pat}/"),
+            query: ParsedQuery { regexes: vec![pat.clone()], ..Default::default() },
+            filter: Some(re.clone()),
+        }));
+
+        // Matching exchange ordinals for one needle under the given extra
+        // facet constraints.
+        let exchanges_for = |needle: &Needle, facets: &[(String, String)]| -> Result<HashSet<u32>> {
+            let mut single = needle.query.clone();
+            single.facets = facets.to_vec();
+            let mut exchanges = HashSet::new();
+            if let Some(q) = self.build_query(&single, Some(conversation_id), ts_range, false) {
+                for (_score, addr) in
+                    searcher.search(&q, &TopDocs::with_limit(10_000).order_by_score())?
+                {
+                    let doc: TantivyDocument = searcher.doc(addr)?;
+                    if let Some(re) = &needle.filter {
+                        let text = doc
+                            .get_first(self.fields.text)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default();
+                        if !re.is_match(text) {
+                            continue;
                         }
                     }
+                    if let Some(ex) = doc
+                        .get_first(self.fields.exchange_ordinal)
+                        .and_then(|v| v.as_u64())
+                    {
+                        exchanges.insert(ex as u32);
+                    }
                 }
-                per_term_exchanges.push(exchanges);
             }
-            // Exchanges containing ALL terms (somewhere).
-            let mut intersection: Vec<u32> = per_term_exchanges
+            Ok(exchanges)
+        };
+
+        if needles.len() > 1 && result.turn_hits.is_empty() {
+            let mut per_needle_exchanges: Vec<HashSet<u32>> = Vec::new();
+            for needle in &needles {
+                per_needle_exchanges.push(exchanges_for(needle, &parsed.facets)?);
+            }
+            // Exchanges containing ALL needles (somewhere).
+            let mut intersection: Vec<u32> = per_needle_exchanges
                 .iter()
                 .skip(1)
-                .fold(per_term_exchanges[0].clone(), |acc, s| {
+                .fold(per_needle_exchanges[0].clone(), |acc, s| {
                     acc.intersection(s).copied().collect()
                 })
                 .into_iter()
@@ -361,19 +475,33 @@ impl SearchIndex {
             intersection.truncate(limit);
             result.passage_exchanges = intersection;
         }
-        // Tier 3: per-term counts.
-        for needle in &text_needles {
-            let single = ParsedQuery {
-                terms: vec![needle.clone()],
-                phrases: vec![],
-                facets: vec![],
-                dates: vec![],
+        // Tier 3: per-needle turn counts (no facet constraints).
+        for needle in &needles {
+            let count = if let Some(re) = &needle.filter {
+                let mut n = 0;
+                if let Some(q) = self.build_query(&needle.query, Some(conversation_id), ts_range, false)
+                {
+                    for (_score, addr) in
+                        searcher.search(&q, &TopDocs::with_limit(10_000).order_by_score())?
+                    {
+                        let doc: TantivyDocument = searcher.doc(addr)?;
+                        let text = doc
+                            .get_first(self.fields.text)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default();
+                        if re.is_match(text) {
+                            n += 1;
+                        }
+                    }
+                }
+                n
+            } else {
+                match self.build_query(&needle.query, Some(conversation_id), ts_range, false) {
+                    Some(q) => searcher.search(&q, &Count)?,
+                    None => 0,
+                }
             };
-            let count = match self.build_query(&single, Some(conversation_id), None, false) {
-                Some(q) => searcher.search(&q, &Count)?,
-                None => 0,
-            };
-            result.term_counts.push((needle.clone(), count));
+            result.term_counts.push((needle.label.clone(), count));
         }
         Ok(result)
     }
@@ -520,6 +648,13 @@ pub struct ConversationMatches {
     pub best_score: f32,
     pub last_ts: Option<i64>,
     pub best: Option<TurnHit>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct SearchMeta {
+    /// A regex post-filter ran against a capped candidate pool; older
+    /// matches beyond the cap were not scanned.
+    pub scan_capped: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
