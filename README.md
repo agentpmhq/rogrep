@@ -80,10 +80,12 @@ rogrep tui [QUERY|rg_…[#eN]]  interactive terminal UI (an id opens that conver
 ```
 
 Query grammar: bare terms AND together, `"quoted phrases"` match in order,
-and `key:value` facets filter — `tool_cmd:git`, `tool_status:failed`,
-`git_pr_num:48`, `provider:codex`, `file:src/lib.rs`, `since:7d`, and more
-(`rogrep skill show` documents the full set). Tokens with unknown keys
-(URLs, `data:` URIs) are treated as literal text, never silently dropped.
+`/regex/` patterns match full turn text, and `key:value` facets filter —
+`tool_cmd:git`, `tool_status:failed`, `tool_type:tests`, `git_pr_num:48`,
+`provider:codex`, `file:src/lib.rs` (substring over absolute paths),
+`model:sonnet`, `since:7d`, and more. Tokens with unknown keys (URLs,
+`data:` URIs) are treated as literal text, never silently dropped. The
+full reference lives in [docs/query-syntax.md](docs/query-syntax.md).
 
 ## Statistics
 
