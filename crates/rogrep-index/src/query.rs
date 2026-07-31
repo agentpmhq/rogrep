@@ -29,12 +29,17 @@ pub const KNOWN_FACET_KEYS: &[&str] = &[
     "project",
     "cwd",
     "file",
+    "source",
     "content",
     "role",
     "tool",
     "skill",
     "mcp",
     "tool_cmd",
+    "tool_type",
+    "tool_location",
+    "tool_mutability",
+    "tool_privilege",
     "tool_status",
     "tool_mutating",
     "git_cmd",
@@ -195,9 +200,12 @@ pub fn parse_query(query: &str) -> ParsedQuery {
     parsed
 }
 
-/// Facet value normalization: `_`→`-` for status-like values, short-sha
-/// truncation for commits (matches the indexed vocabulary).
-fn normalize_facet_value(key: &str, value: &str) -> String {
+/// Facet value normalization, mirroring what the indexing side emits:
+/// lowercase everywhere, `_`→`-` for the tool_*/git_* vocabularies
+/// (agentpm's normalizeLexicalTurnFacetValue), short-sha truncation for
+/// commits. Applied both at parse time and centrally in the index's
+/// facet_clause so synthesized queries normalize identically.
+pub fn normalize_facet_value(key: &str, value: &str) -> String {
     let v = value.trim();
     match key {
         "git_commit" => {
@@ -208,8 +216,12 @@ fn normalize_facet_value(key: &str, value: &str) -> String {
                 v
             }
         }
-        "tool" | "tool_cmd" | "skill" | "mcp" => v.to_lowercase(),
-        "tool_status" | "content" | "is" | "origin" | "subagent" | "provider" | "agent" | "role" => {
+        "tool" | "skill" | "mcp" | "model" | "project" | "cwd" | "file" | "source" => {
+            v.to_lowercase()
+        }
+        "tool_cmd" | "tool_type" | "tool_location" | "tool_mutability" | "tool_privilege"
+        | "tool_status" | "git_cmd" | "git_pr" | "git_pr_num" | "git_branch" | "git_remote"
+        | "content" | "is" | "origin" | "subagent" | "provider" | "agent" | "role" => {
             v.to_lowercase().replace('_', "-").replace("--", "-")
         }
         _ => v.to_string(),

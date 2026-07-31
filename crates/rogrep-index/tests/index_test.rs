@@ -209,6 +209,75 @@ fn find_regex_needles_participate_in_tiers() {
 }
 
 #[test]
+fn metadata_facets_substring_match() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
+    let (_tmp, index) = build_index(&[&claude, &codex]);
+
+    // model: substring, case-insensitive (fixture models: claude-fable-5,
+    // gpt-5.2-codex).
+    let hits = index.search(&parse_query("flaky model:Fable"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].conversation_id, claude.conversation.id.as_str());
+    let hits = index.search(&parse_query("flaky model:codex"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    // provider: substring too.
+    let hits = index.search(&parse_query("flaky provider:code"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    // source: matches the rollout file path.
+    let hits = index.search(&parse_query("flaky source:.codex/sessions"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].conversation_id, codex.conversation.id.as_str());
+    // project: substring on the normalized key (both fixtures live in
+    // -home-u-src-proj).
+    let hits = index.search(&parse_query("flaky project:src-proj"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2);
+    // No accidental matches.
+    let hits = index.search(&parse_query("flaky model:nonexistent"), None, 100).unwrap().0;
+    assert!(hits.is_empty());
+}
+
+#[test]
+fn file_facet_matches_relative_substring() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/edge_cases.jsonl"), None);
+    let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
+    let (_tmp, index) = build_index(&[&claude, &codex]);
+    // The index stores absolute paths; a relative query must still match by
+    // substring. Find any file-ref the fixtures produced first.
+    let all_refs: Vec<String> = [&claude, &codex]
+        .iter()
+        .flat_map(|out| &out.conversation.turns)
+        .flat_map(|t| rogrep_tooltree::facets::file_refs_for_turn(t))
+        .map(|(p, _)| p)
+        .collect();
+    if let Some(path) = all_refs.first() {
+        let tail: String = path.rsplit('/').take(2).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("/");
+        let q = format!("file:{}", tail);
+        let hits = index.search(&parse_query(&q), None, 100).unwrap().0;
+        assert!(!hits.is_empty(), "file:{tail} should substring-match {path}");
+    }
+}
+
+#[test]
+fn tool_type_and_qualifier_facets_indexed() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
+    let (_tmp, index) = build_index(&[&claude, &codex]);
+
+    // Both fixtures ran `cargo test …` → tests, local, mutating.
+    let hits = index.search(&parse_query("tool_type:tests"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2);
+    let hits = index.search(&parse_query("tool_type:tests tool_location:remote"), None, 100).unwrap().0;
+    assert!(hits.is_empty());
+    let hits = index.search(&parse_query("tool_type:tests tool_mutability:mutating"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2);
+    // Underscore form normalizes to the dashed vocabulary.
+    let hits = index.search(&parse_query("tool_mutability:read_only"), None, 100).unwrap().0;
+    let dashed = index.search(&parse_query("tool_mutability:read-only"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), dashed.len());
+}
+
+#[test]
 fn subagent_facet_filters_on_origin() {
     let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
     assert_eq!(claude.conversation.origin, rogrep_model::Origin::Interactive);

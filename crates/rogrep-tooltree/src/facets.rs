@@ -36,6 +36,39 @@ pub fn command_from_shell_turn(turn: &Turn) -> Option<String> {
     command_from_input(turn)
 }
 
+/// Slug a facet value into the indexed vocabulary: lowercase, `/` and `.`
+/// preserved (branches, versions), every other punctuation run collapsed
+/// to a single `-`. Applied on the query side too, so `Feature_X` and
+/// `feature-x` meet at the same token.
+pub fn facet_slug(value: &str) -> String {
+    let mut out = String::new();
+    let mut pending_dash = false;
+    for c in value.to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() || c == '.' || c == '/' {
+            if pending_dash && !out.is_empty() {
+                out.push('-');
+            }
+            pending_dash = false;
+            out.push(c);
+        } else {
+            pending_dash = true;
+        }
+    }
+    out
+}
+
+/// git_cmd tokens that imply a read-only segment (used when a segment has
+/// git facets but no classifier subtype).
+fn git_tokens_read_only(tokens: &[String]) -> bool {
+    tokens.iter().any(|t| {
+        matches!(
+            t.as_str(),
+            "git_cmd:status" | "git_cmd:diff" | "git_cmd:log" | "git_cmd:show" | "git_cmd:remote"
+                | "git_cmd:rev-parse" | "git_cmd:ls-remote" | "git_cmd:merge-base"
+        )
+    })
+}
+
 /// Facet tokens for the command line of a shell tool call.
 pub fn shell_command_facets(command: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -60,12 +93,72 @@ pub fn shell_command_facets(command: &str) -> Vec<String> {
         } else {
             (exe, effective.clone())
         };
-        out.push(format!("tool_cmd:{exe}"));
-        out.extend(git::git_facets_for_segment(&rest));
+        out.push(format!("tool_cmd:{}", facet_slug(&exe)));
+        let git_tokens = git::git_facets_for_segment(&rest);
+        let cls = crate::classify::classify_shell_command(&effective);
+        // agentpm parity: unclassified segments with no git evidence get
+        // only their tool_cmd token.
+        if cls.subtype.is_none() && git_tokens.is_empty() {
+            continue;
+        }
+        if let Some(subtype) = cls.subtype {
+            out.push(format!("tool_type:{subtype}"));
+        }
+        let read_only = if cls.subtype.is_some() {
+            cls.read_only
+        } else {
+            git_tokens_read_only(&git_tokens)
+        };
+        out.push(format!("tool_location:{}", if cls.remote { "remote" } else { "local" }));
+        out.push(format!("tool_mutability:{}", if read_only { "read-only" } else { "mutating" }));
+        if cls.privileged {
+            out.push("tool_privilege:privileged".to_string());
+        }
+        out.extend(git_tokens);
     }
     out.sort();
     out.dedup();
     out
+}
+
+/// agentpm's normalizeTool slugs: canonical `tool_type:` values for
+/// non-shell tools; unknown names fall back to `facet_slug`.
+fn normalized_tool_slug(name: &str) -> String {
+    match name.to_lowercase().as_str() {
+        "" | "tool_result" | "tool" => "tool".into(),
+        "bash" => "bash".into(),
+        "exec" | "exec_command" | "shell" | "terminal" | "command" => "exec".into(),
+        "list_dir" | "listdir" => "list-dir".into(),
+        "read_file" | "readfile" | "read" => "read-file".into(),
+        "write_file" | "writefile" | "write" => "write-file".into(),
+        "edit_file" | "editfile" | "edit" => "edit-file".into(),
+        "multi_edit" | "multiedit" => "multi-edit".into(),
+        "notebook_edit" | "notebookedit" => "notebook-edit".into(),
+        "grep" => "grep".into(),
+        "apply_patch" => "apply-patch".into(),
+        "write_stdin" => "write-stdin".into(),
+        "request_user_input" => "request-user-input".into(),
+        "update_plan" => "update-plan".into(),
+        "spawn_agent" => "spawn-agent".into(),
+        "send_input" => "send-input".into(),
+        "wait_agent" => "wait-agent".into(),
+        "close_agent" => "close-agent".into(),
+        "resume_agent" => "resume-agent".into(),
+        other => facet_slug(other),
+    }
+}
+
+/// Read-only decision for a non-shell tool: a known read-only tool, or one
+/// whose file accesses are all read-mode.
+fn non_shell_read_only(slug: &str, refs: &[(String, &'static str)]) -> bool {
+    if matches!(
+        slug,
+        "read-file" | "list-dir" | "grep" | "request-user-input" | "update-plan" | "spawn-agent"
+            | "wait-agent"
+    ) {
+        return true;
+    }
+    !refs.is_empty() && refs.iter().all(|(_, mode)| *mode == "read")
 }
 
 /// All facet tokens for one turn.
@@ -99,6 +192,15 @@ pub fn facet_tokens_for_turn(turn: &Turn) -> Vec<String> {
                             out.push("tool_mutating:true".to_string());
                         }
                     }
+                } else {
+                    let slug = normalized_tool_slug(&info.name);
+                    let read_only = non_shell_read_only(&slug, &file_refs_for_turn(turn));
+                    out.push(format!("tool_type:{slug}"));
+                    out.push("tool_location:local".to_string());
+                    out.push(format!(
+                        "tool_mutability:{}",
+                        if read_only { "read-only" } else { "mutating" }
+                    ));
                 }
                 out.push(format!("tool_status:{}", info.status.as_str()));
             }

@@ -125,38 +125,53 @@ impl SearchIndex {
     }
 
     fn facet_clause(&self, key: &str, value: &str) -> Option<Box<dyn Query>> {
-        let (field, is_token): (tantivy::schema::Field, bool) = match key {
-            "provider" | "agent" => (self.fields.provider, false),
-            "origin" => (self.fields.origin, false),
-            "model" => (self.fields.model, false),
-            "project" => (self.fields.project, false),
-            "cwd" => (self.fields.cwd, false),
-            "file" => (self.fields.file, false),
-            "role" => (self.fields.role, false),
-            _ => (self.fields.turn_facets, true),
+        // Metadata facets substring-match (agentpm semantics: `model:sonnet`
+        // matches `claude-sonnet-4`); vocabulary facets are exact tokens.
+        enum Kind {
+            Substring,
+            Exact,
+            Token,
+        }
+        let (field, kind) = match key {
+            "provider" | "agent" => (self.fields.provider, Kind::Substring),
+            "model" => (self.fields.model, Kind::Substring),
+            "project" => (self.fields.project, Kind::Substring),
+            "cwd" => (self.fields.cwd, Kind::Substring),
+            "file" => (self.fields.file, Kind::Substring),
+            "source" => (self.fields.source, Kind::Substring),
+            "origin" => (self.fields.origin, Kind::Exact),
+            "role" => (self.fields.role, Kind::Exact),
+            _ => (self.fields.turn_facets, Kind::Token),
         };
         // A `/pattern/` facet value regex-matches the whole indexed value
         // (tantivy term regexes are anchored). An invalid pattern falls
         // through to a TermQuery on the raw value, which matches nothing.
         if let Some(pat) = regex_token(value) {
-            let pattern = if is_token {
-                format!("{key}:(?:{pat})")
-            } else {
-                pat.to_string()
+            let pattern = match kind {
+                Kind::Token => format!("{key}:(?:{pat})"),
+                _ => pat.to_string(),
             };
             if let Ok(q) = RegexQuery::from_pattern(&pattern, field) {
                 return Some(Box::new(q));
             }
         }
-        let term_value = if is_token {
-            format!("{key}:{value}")
-        } else {
-            value.to_string()
+        // Central normalization: synthesized queries (trajectory's --branch,
+        // --project flags) reach here without going through parse_query.
+        let value = crate::query::normalize_facet_value(key, value);
+        let term_value = match kind {
+            Kind::Token => format!("{key}:{value}"),
+            _ => value.clone(),
         };
         if let Some(re) = facet_glob_regex(&term_value) {
             return RegexQuery::from_pattern(&re, field)
                 .ok()
                 .map(|q| Box::new(q) as Box<dyn Query>);
+        }
+        if matches!(kind, Kind::Substring) {
+            let pattern = format!("(?s).*{}.*", regex::escape(&value));
+            if let Ok(q) = RegexQuery::from_pattern(&pattern, field) {
+                return Some(Box::new(q));
+            }
         }
         Some(Box::new(TermQuery::new(
             Term::from_field_text(field, &term_value),
@@ -580,6 +595,8 @@ impl IndexBatch {
                     }
                 }
             }
+            // Metadata fields are lowercased at write so substring facet
+            // matching (`model:sonnet`) is case-insensitive, like agentpm.
             let mut doc = doc!(
                 self.fields.text => t.text.as_str(),
                 self.fields.doc_key => format!("{cid}:{}", t.turn_index),
@@ -588,24 +605,28 @@ impl IndexBatch {
                 self.fields.exchange_ordinal => exchange_base + exchange_for(t.turn_index),
                 self.fields.role => t.role.as_str(),
                 self.fields.visible => if rogrep_model::is_visible_turn(t) { "true" } else { "false" },
-                self.fields.project => conv.normalized_project.as_str(),
-                self.fields.provider => conv.agent.as_str(),
+                self.fields.project => conv.normalized_project.to_lowercase(),
+                self.fields.provider => conv.agent.as_str().to_lowercase(),
                 self.fields.origin => conv.origin.as_str(),
+                self.fields.source => conv.source_path.to_lowercase(),
             );
             if let Some(ts) = t.ts {
                 doc.add_i64(self.fields.ts, ts);
             }
-            if let Some(cwd) = &t.cwd {
-                doc.add_text(self.fields.cwd, cwd);
+            // Per-turn value when present, conversation-level fallback so
+            // model:/cwd: behave as conversation attributes (agentpm
+            // matches them on the conversation record).
+            if let Some(cwd) = t.cwd.as_ref().or(conv.cwd.as_ref()) {
+                doc.add_text(self.fields.cwd, cwd.to_lowercase());
             }
-            if let Some(model) = &t.model {
-                doc.add_text(self.fields.model, model);
+            if let Some(model) = t.model.as_ref().or(conv.model.as_ref()) {
+                doc.add_text(self.fields.model, model.to_lowercase());
             }
             for f in facets {
                 doc.add_text(self.fields.turn_facets, &f);
             }
             for (path, _mode) in rogrep_tooltree::facets::file_refs_for_turn(t) {
-                doc.add_text(self.fields.file, &path);
+                doc.add_text(self.fields.file, path.to_lowercase());
             }
             self.writer.add_document(doc)?;
             self.pending += 1;
