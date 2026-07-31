@@ -7,7 +7,7 @@ use tantivy::schema::{
     STORED, STRING,
 };
 
-pub const INDEX_SCHEMA_VERSION: u32 = 3;
+pub const INDEX_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Clone)]
 pub struct Fields {
@@ -26,6 +26,7 @@ pub struct Fields {
     pub provider: tantivy::schema::Field,
     pub model: tantivy::schema::Field,
     pub origin: tantivy::schema::Field,
+    pub source: tantivy::schema::Field,
 }
 
 pub fn build_schema() -> (Schema, Fields) {
@@ -61,6 +62,8 @@ pub fn build_schema() -> (Schema, Fields) {
     let model = builder.add_text_field("model", STRING);
     // interactive | subagent | scheduled | auxiliary.
     let origin = builder.add_text_field("origin", STRING);
+    // Lowercased source rollout file path (substring-matched `source:`).
+    let source = builder.add_text_field("source", STRING);
     let schema = builder.build();
     let fields = Fields {
         text,
@@ -78,6 +81,7 @@ pub fn build_schema() -> (Schema, Fields) {
         provider,
         model,
         origin,
+        source,
     };
     (schema, fields)
 }

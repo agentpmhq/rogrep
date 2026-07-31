@@ -89,17 +89,22 @@ fn git_command_facets(args: &[String]) -> Vec<String> {
         return out;
     }
     out.push(format!("git_cmd:{verb}"));
+    // agentpm parity: pull/push/status get a tool_type composite on top of
+    // whatever the classifier assigns.
+    if matches!(verb.as_str(), "pull" | "push" | "status") {
+        out.push(format!("tool_type:git-{verb}"));
+    }
     let operands: Vec<&String> = args[idx + 1..].iter().filter(|a| !a.starts_with('-')).collect();
     match verb.as_str() {
         "push" | "pull" | "fetch" => {
             if let Some(remote) = operands.first() {
-                out.push(format!("git_remote:{remote}"));
+                out.push(format!("git_remote:{}", crate::facets::facet_slug(remote)));
             }
             if let Some(refspec) = operands.get(1) {
                 // `git push origin local:remote` → the remote branch.
                 let branch = refspec.rsplit(':').next().unwrap_or(refspec);
                 if looks_like_branch(branch) {
-                    out.push(format!("git_branch:{branch}"));
+                    out.push(format!("git_branch:{}", crate::facets::facet_slug(branch)));
                 }
             }
         }
@@ -108,7 +113,7 @@ fn git_command_facets(args: &[String]) -> Vec<String> {
                 if looks_like_sha(op) {
                     out.push(format!("git_commit:{}", short_sha(op)));
                 } else if looks_like_branch(op) {
-                    out.push(format!("git_branch:{op}"));
+                    out.push(format!("git_branch:{}", crate::facets::facet_slug(op)));
                 }
             }
         }
@@ -124,7 +129,7 @@ fn git_command_facets(args: &[String]) -> Vec<String> {
             if operands.first().map(|s| s.as_str()) == Some("add") {
                 if let Some(branch) = operands.get(2) {
                     if looks_like_branch(branch) {
-                        out.push(format!("git_branch:{branch}"));
+                        out.push(format!("git_branch:{}", crate::facets::facet_slug(branch)));
                     }
                 }
             }
@@ -132,7 +137,7 @@ fn git_command_facets(args: &[String]) -> Vec<String> {
         "tag" => {
             if let Some(name) = operands.first() {
                 if looks_like_branch(name) {
-                    out.push(format!("git_branch:{name}"));
+                    out.push(format!("git_branch:{}", crate::facets::facet_slug(name)));
                 }
             }
         }
@@ -176,12 +181,12 @@ fn gh_command_facets(args: &[String]) -> Vec<String> {
             if a == flag {
                 if let Some(v) = iter.peek() {
                     if looks_like_branch(v) {
-                        out.push(format!("git_branch:{v}"));
+                        out.push(format!("git_branch:{}", crate::facets::facet_slug(v)));
                     }
                 }
             } else if let Some(v) = a.strip_prefix(&format!("{flag}=")) {
                 if looks_like_branch(v) {
-                    out.push(format!("git_branch:{v}"));
+                    out.push(format!("git_branch:{}", crate::facets::facet_slug(v)));
                 }
             }
         }
@@ -279,11 +284,19 @@ mod tests {
         assert_eq!(git_facets_for_segment("git commit -m 'fix'"), vec!["git_cmd:commit"]);
         assert_eq!(
             git_facets_for_segment("git push origin feature/x"),
-            vec!["git_cmd:push", "git_remote:origin", "git_branch:feature/x"]
+            vec!["git_cmd:push", "tool_type:git-push", "git_remote:origin", "git_branch:feature/x"]
         );
         assert_eq!(
             git_facets_for_segment("git push origin local:remote-branch"),
-            vec!["git_cmd:push", "git_remote:origin", "git_branch:remote-branch"]
+            vec!["git_cmd:push", "tool_type:git-push", "git_remote:origin", "git_branch:remote-branch"]
+        );
+    }
+
+    #[test]
+    fn branch_values_slugged() {
+        assert_eq!(
+            git_facets_for_segment("git checkout Feature_X"),
+            vec!["git_cmd:checkout", "git_branch:feature-x"]
         );
     }
 
