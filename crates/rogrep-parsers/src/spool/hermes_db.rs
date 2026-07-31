@@ -1,7 +1,16 @@
 //! Hermes exporter: `~/.hermes/state.db` (sessions + messages tables) →
 //! per-session spool JSONL.
+//!
+//! The Hermes schema is not stable across versions — `schema_version` 12, for
+//! instance, has no `cwd`, `archived`, or `rewind_count` on `sessions` and no
+//! `active` on `messages`. Rather than pin to one revision, every optional
+//! column is probed with `pragma_table_info` and either selected or replaced
+//! with a literal; the soft-delete filters are only applied when the columns
+//! backing them exist. A schema that lacks a field yields a null in the spool
+//! record, which the parser already tolerates.
 
-use super::{write_spool_file, SpoolReport, SpoolState};
+use super::{col_or_null, table_columns, write_spool_file, SpoolReport, SpoolState};
+use anyhow::bail;
 use rusqlite::Connection;
 use serde_json::json;
 use std::path::Path;
@@ -31,12 +40,40 @@ fn export_inner(db_path: &Path, spool_dir: &Path, report: &mut SpoolReport) -> a
         rewind_count: i64,
     }
 
+    let scols = table_columns(&conn, "sessions")?;
+    let mcols = table_columns(&conn, "messages")?;
+    if scols.is_empty() || mcols.is_empty() {
+        bail!("not a hermes database (missing sessions/messages tables)");
+    }
+
+    // Older revisions soft-delete; newer ones just don't have the concept.
+    // Absent column → no filter, i.e. every row is live.
+    let live_sessions = if scols.contains("archived") {
+        "WHERE COALESCE(archived, 0) = 0"
+    } else {
+        ""
+    };
+    let live_messages = if mcols.contains("active") {
+        "AND COALESCE(active, 1) = 1"
+    } else {
+        ""
+    };
+    let rewind = if scols.contains("rewind_count") {
+        "COALESCE(rewind_count, 0)"
+    } else {
+        "0"
+    };
+
     let sessions: Vec<SessionRow> = conn
-        .prepare(
-            "SELECT id, cwd, title, model, parent_session_id, started_at,
-                    COALESCE(rewind_count, 0)
-             FROM sessions WHERE COALESCE(archived, 0) = 0",
-        )?
+        .prepare(&format!(
+            "SELECT id, {}, {}, {}, {}, {}, {rewind}
+             FROM sessions {live_sessions}",
+            col_or_null(&scols, "cwd"),
+            col_or_null(&scols, "title"),
+            col_or_null(&scols, "model"),
+            col_or_null(&scols, "parent_session_id"),
+            col_or_null(&scols, "started_at"),
+        ))?
         .query_map([], |r| {
             Ok(SessionRow {
                 id: r.get(0)?,
@@ -50,15 +87,29 @@ fn export_inner(db_path: &Path, spool_dir: &Path, report: &mut SpoolReport) -> a
         })?
         .collect::<Result<_, _>>()?;
 
-    let mut fp_stmt = conn.prepare(
-        "SELECT COALESCE(MAX(id), 0), COUNT(*), COALESCE(MAX(timestamp), 0)
-         FROM messages WHERE session_id = ?1 AND COALESCE(active, 1) = 1",
-    )?;
-    let mut msg_stmt = conn.prepare(
-        "SELECT role, content, tool_calls, tool_call_id, tool_name, timestamp, token_count
-         FROM messages WHERE session_id = ?1 AND COALESCE(active, 1) = 1
+    // Kept as a real literal, not `col_or_null`: the fingerprint column is
+    // read back as f64, and `MAX(NULL)` would coalesce to an integer.
+    let max_ts = if mcols.contains("timestamp") {
+        "COALESCE(MAX(timestamp), 0.0)"
+    } else {
+        "0.0"
+    };
+    let mut fp_stmt = conn.prepare(&format!(
+        "SELECT COALESCE(MAX(id), 0), COUNT(*), {max_ts}
+         FROM messages WHERE session_id = ?1 {live_messages}",
+    ))?;
+    let mut msg_stmt = conn.prepare(&format!(
+        "SELECT {}, {}, {}, {}, {}, {}, {}
+         FROM messages WHERE session_id = ?1 {live_messages}
          ORDER BY id",
-    )?;
+        col_or_null(&mcols, "role"),
+        col_or_null(&mcols, "content"),
+        col_or_null(&mcols, "tool_calls"),
+        col_or_null(&mcols, "tool_call_id"),
+        col_or_null(&mcols, "tool_name"),
+        col_or_null(&mcols, "timestamp"),
+        col_or_null(&mcols, "token_count"),
+    ))?;
 
     let mut changed = false;
     for s in sessions {

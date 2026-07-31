@@ -16,7 +16,35 @@ pub mod opencode_db;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "sqlite")]
+use std::collections::HashSet;
 use std::path::Path;
+
+/// Column names present in `table`, or an empty set if the table is absent.
+///
+/// Agent databases are third-party and evolve without notice: a column an
+/// exporter needs today may be gone tomorrow. Probing first lets a SELECT be
+/// built from what actually exists instead of aborting the whole provider on
+/// the first `no such column`.
+#[cfg(feature = "sqlite")]
+pub fn table_columns(conn: &rusqlite::Connection, table: &str) -> rusqlite::Result<HashSet<String>> {
+    conn.prepare("SELECT name FROM pragma_table_info(?1)")?
+        .query_map([table], |r| r.get::<_, String>(0))?
+        .collect()
+}
+
+/// `name` if the table has that column, else the literal `NULL`.
+///
+/// Substituting a literal keeps column *positions* stable, so the row-mapping
+/// indices below don't have to shift with the schema.
+#[cfg(feature = "sqlite")]
+pub fn col_or_null(cols: &HashSet<String>, name: &str) -> String {
+    if cols.contains(name) {
+        name.to_string()
+    } else {
+        "NULL".to_string()
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct SpoolReport {
