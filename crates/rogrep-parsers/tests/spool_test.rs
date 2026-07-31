@@ -6,6 +6,9 @@ use rogrep_parsers::spool::{self, SpoolReport};
 use rusqlite::Connection;
 use std::path::Path;
 
+/// A Hermes schema carrying every optional column the exporter knows about:
+/// soft-delete (`archived`/`active`), `rewind_count`, and `cwd`. Exercises the
+/// rewind path, which newer schemas can no longer express.
 fn make_hermes_db(path: &Path) -> Connection {
     let conn = Connection::open(path).unwrap();
     conn.execute_batch(
@@ -73,6 +76,89 @@ fn hermes_export_skip_and_rewrite() {
     spool::hermes_db::export(&db_path, &spool, &mut report4);
     assert_eq!(report4.sessions_written, 1);
     assert!(!std::fs::read_to_string(&file).unwrap().contains("follow-up"));
+}
+
+/// Hermes `schema_version` 12 as actually shipped: no `cwd`, `archived`, or
+/// `rewind_count` on sessions, no `active` on messages. Before the exporter
+/// probed for columns, this aborted on `no such column: cwd` and silently
+/// dropped every Hermes session from the index.
+#[test]
+fn hermes_export_schema_without_optional_columns() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db_path = tmp.path().join("state.db");
+    let conn = Connection::open(&db_path).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE sessions(id TEXT PRIMARY KEY, source TEXT NOT NULL, user_id TEXT,
+            model TEXT, parent_session_id TEXT, started_at REAL NOT NULL, ended_at REAL,
+            message_count INTEGER DEFAULT 0, title TEXT);
+         CREATE TABLE messages(id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT,
+            tool_call_id TEXT, tool_calls TEXT, tool_name TEXT,
+            timestamp REAL NOT NULL, token_count INTEGER, finish_reason TEXT);",
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO sessions(id, source, model, started_at, title)
+         VALUES('20260520_230141_720da2','cli','claude-opus-4-7',1779343309.65,'Confirm availability')",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO messages(session_id, role, content, timestamp)
+         VALUES('20260520_230141_720da2','user','are you there?',1779343310.0)",
+        [],
+    )
+    .unwrap();
+
+    let spool = tmp.path().join("spool/hermes");
+    let mut report = SpoolReport::default();
+    spool::hermes_db::export(&db_path, &spool, &mut report);
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    assert_eq!(report.sessions_written, 1);
+
+    let content =
+        std::fs::read_to_string(spool.join("20260520_230141_720da2.jsonl")).unwrap();
+    assert!(content.contains("are you there?"));
+    assert!(content.contains("Confirm availability"));
+    // No cwd exists in this schema — the meta record carries an explicit null,
+    // which the hermes provider treats as "no project".
+    assert!(content.contains("\"cwd\":null"));
+
+    // Fingerprinting still works without the rewind/active columns.
+    let mut report2 = SpoolReport::default();
+    spool::hermes_db::export(&db_path, &spool, &mut report2);
+    assert_eq!(report2.sessions_written, 0, "unchanged session must be skipped");
+
+    conn.execute(
+        "INSERT INTO messages(session_id, role, content, timestamp)
+         VALUES('20260520_230141_720da2','assistant','yes',1779343320.0)",
+        [],
+    )
+    .unwrap();
+    let mut report3 = SpoolReport::default();
+    spool::hermes_db::export(&db_path, &spool, &mut report3);
+    assert_eq!(report3.sessions_written, 1, "new message must trigger a rewrite");
+}
+
+/// A database that isn't Hermes at all should fail with something better than
+/// a bare `no such column`.
+#[test]
+fn hermes_export_rejects_foreign_database() {
+    let tmp = tempfile::tempdir().unwrap();
+    let db_path = tmp.path().join("other.db");
+    Connection::open(&db_path)
+        .unwrap()
+        .execute_batch("CREATE TABLE unrelated(id TEXT)")
+        .unwrap();
+
+    let mut report = SpoolReport::default();
+    spool::hermes_db::export(&db_path, &tmp.path().join("spool/hermes"), &mut report);
+    assert_eq!(report.sessions_written, 0);
+    assert!(
+        report.errors.iter().any(|e| e.contains("not a hermes database")),
+        "{:?}",
+        report.errors
+    );
 }
 
 #[test]
