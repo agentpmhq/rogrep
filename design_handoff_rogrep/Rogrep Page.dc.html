@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #F2F2EF; font-family: 'Archivo', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  a:hover { color: #9E5432; }
+  @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+  @keyframes traceMove { to { stroke-dashoffset: -24 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+</helmet>
+
+<div style="container-type:inline-size; background:#F2F2EF; color:#16181B; max-width:100%; margin:0 auto;">
+
+  <div style="display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; justify-content:space-between; background:#16181B; color:#8C8C84; padding:8px clamp(20px,3cqi,40px); font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase;">
+    <a href="https://ironscribe.co" style="color:#F2F2EF;" style-hover="color:#C97A4F;">An Iron Scribe project</a>
+    <div style="display:flex; gap:16px; align-items:center;">
+      <span style="color:#6B6E72;">Apache-2.0</span>
+      <a href="https://github.com/agentpmhq/rogrep" style="color:#8C8C84;" style-hover="color:#C97A4F;">github ↗</a>
+    </div>
+  </div>
+
+  <header style="position:sticky; top:0; z-index:20; background:#F2F2EF; border-bottom:1px solid #16181B;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:20px; padding:13px clamp(20px,3cqi,40px);">
+      <a href="/" style="display:flex; align-items:baseline; gap:9px; flex:none;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; letter-spacing:-0.02em;">rogrep</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8C8C84;">{{ version }}</span>
+      </a>
+      <nav style="display:flex; flex-wrap:wrap; gap:20px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#43464A;">
+        <a href="https://github.com/agentpmhq/rogrep#readme">docs</a>
+        <a href="#benchmark">benchmarks</a>
+        <a href="https://github.com/agentpmhq/rogrep/discussions">discussions</a>
+        <a href="https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md">contributing</a>
+      </nav>
+      <div style="display:flex; align-items:center; gap:9px; flex:none;">
+        <a href="https://github.com/agentpmhq/rogrep" style="display:flex; align-items:stretch; border:1px solid #16181B; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500;" style-hover="color:#16181B;">
+          <span style="display:flex; align-items:center; gap:6px; padding:8px 10px; border-right:1px solid #16181B;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.34c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .66-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.54-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>
+            <span>Star</span>
+          </span>
+          <span style="display:flex; align-items:center; padding:8px 11px; background:#16181B; color:#F2F2EF;">{{ stars }}</span>
+        </a>
+        <a href="#install" style="font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:500; color:#F2F2EF; background:#9E5432; padding:9px 14px; white-space:nowrap;" style-hover="background:#8A4629; color:#F2F2EF;">install</a>
+      </div>
+    </div>
+  </header>
+
+  <section style="border-bottom:1px solid #16181B; padding:clamp(38px,5.6cqi,72px) clamp(20px,3cqi,40px) clamp(30px,4cqi,48px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(18px,2.2cqi,28px);">
+      <h1 style="margin:0; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:clamp(46px,9cqi,104px); line-height:0.9; letter-spacing:-0.05em;">rogrep</h1>
+      <p style="margin:0; font-weight:700; font-size:clamp(24px,3.4cqi,42px); line-height:1.05; letter-spacing:-0.035em; max-width:22ch; text-wrap:balance;">Search and analyze every coding-agent session.</p>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,18px); line-height:1.6; color:#43464A; max-width:62ch; text-wrap:pretty;">Open source, runs on your machine, no account. <a href="https://github.com/agentpmhq/rogrep" style="border-bottom:1px solid #9E5432;">Supports</a> Claude Code, Codex, Cursor, Grok, Hermes and OpenCode — on macOS and Linux.</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:4px;">
+        <div style="flex:1 1 380px; min-width:0; display:flex; align-items:center; gap:12px; background:#080B10; padding:15px 17px; overflow-x:auto;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:clamp(13px,1.5cqi,15.5px); color:#48E6BF; flex:none;">$</span>
+          <code style="font-family:'JetBrains Mono',monospace; font-size:clamp(13px,1.5cqi,15.5px); color:#E8EDF4; white-space:nowrap;">{{ leadCommand }}</code>
+          <span style="width:8px; height:16px; background:#48E6BF; flex:none; animation:blink 1.1s steps(1,end) infinite;"></span>
+        </div>
+        <a href="#install" style="flex:none; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:500; color:#16181B; border:1px solid #16181B; padding:15px 17px;" style-hover="background:#E4E4DF;">other install options →</a>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD; margin-top:8px;">
+        <sc-for list="{{ repoMeta }}" as="m" hint-placeholder-count="5">
+          <div style="flex:1 1 130px; min-width:0; background:#F8F8F5; padding:11px 13px; display:flex; flex-direction:column; gap:4px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:#8C8C84;">{{ m.k }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:500; color:#16181B;">{{ m.v }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" style="border-bottom:1px solid #16181B; background:#EDEDE9; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">01</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">Install rogrep</h2>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <sc-for list="{{ installs }}" as="i" hint-placeholder-count="3">
+          <div style="background:#F8F8F5; padding:clamp(16px,2cqi,22px) clamp(16px,2cqi,22px);">
+            <div style="display:flex; flex-wrap:wrap; gap:8px 14px; align-items:baseline; justify-content:space-between; margin-bottom:11px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:500; color:#16181B;">{{ i.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8C8C84;">{{ i.note }}</span>
+            </div>
+            <div style="background:#080B10; padding:13px 15px; overflow-x:auto;">
+              <sc-for list="{{ i.lines }}" as="ln" hint-placeholder-count="2">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.75; color:#E8EDF4; white-space:nowrap;"><span style="color:#48E6BF;">$ </span>{{ ln }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <p style="margin:0; font-size:15px; line-height:1.65; color:#43464A; max-width:64ch;">Nothing runs as root, no daemon is installed, and no account is created. Then index what is already on disk:</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <sc-for list="{{ firstRun }}" as="c" hint-placeholder-count="3">
+          <div style="flex:1 1 220px; min-width:0; background:#080B10; padding:14px 15px; display:flex; flex-direction:column; gap:6px;">
+            <code style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#E8EDF4; white-space:nowrap; overflow-x:auto;"><span style="color:#48E6BF;">$ </span>{{ c.cmd }}</code>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#7F8A99;">{{ c.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <p style="margin:0; font-size:14px; line-height:1.6; color:#6B6E72;">Apache-2.0 licensed. Full <a href="https://github.com/agentpmhq/rogrep" style="border-bottom:1px solid #9E5432;">installation options</a>, including prebuilt binaries and shell completions.</p>
+    </div>
+  </section>
+
+  <section style="border-bottom:1px solid #16181B; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">02</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">What does rogrep do?</h2>
+      </div>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,17.5px); line-height:1.65; color:#43464A; max-width:66ch; text-wrap:pretty;">Every coding agent writes its session history to disk in its own format. <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">rogrep</code> reads all of them, normalizes them into conversations, exchanges and turns, and makes the whole corpus searchable — so you can ask the history before you rebuild the work.</p>
+
+      <div style="background:#080B10; box-shadow:0 26px 60px -34px rgba(10,14,20,0.6);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 14px; border-bottom:1px solid rgba(255,255,255,0.10); font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:#556170;">
+          <span>~/src</span><span>local</span>
+        </div>
+        <div style="padding:16px 15px; overflow-x:auto;">
+          <sc-for list="{{ heroTerminal }}" as="ln" hint-placeholder-count="7">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.8; min-height:1.8em; white-space:nowrap; color:{{ ln.c }}">{{ ln.t }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <p style="margin:0; font-size:15px; line-height:1.65; color:#43464A; max-width:66ch;">A match returns the whole exchange — the request and everything the agent did in response — not the single line that happened to contain your words.</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <sc-for list="{{ questions }}" as="q" hint-placeholder-count="3">
+          <div style="flex:1 1 290px; min-width:0; background:#F8F8F5; padding:clamp(18px,2.2cqi,24px); display:flex; flex-direction:column; gap:11px;">
+            <p style="margin:0; font-weight:700; font-size:clamp(17px,1.9cqi,20px); line-height:1.25; letter-spacing:-0.02em;">{{ q.ask }}</p>
+            <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#16181B; background:#EDEDE9; padding:9px 10px; display:block; overflow-x:auto; white-space:nowrap;">$ {{ q.cmd }}</code>
+            <p style="margin:0; font-size:13.5px; line-height:1.6; color:#55585C;">{{ q.body }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom:1px solid #16181B; background:#EDEDE9; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">03</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">Where rogrep keeps things</h2>
+      </div>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,17.5px); line-height:1.65; color:#43464A; max-width:66ch; text-wrap:pretty;"><code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">rogrep</code> won't write outside its own data directory. It reads the session stores each provider already maintains, and stores only derived search and statistics data in <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">~/.local/share/rogrep</code> — overridable with <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">ROGREP_DATA_DIR</code>. Source rollouts stay the durable truth, so anything derived can be deleted and rebuilt.</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#C9C4BB; border:1px solid #C9C4BB;">
+        <sc-for list="{{ arch }}" as="a" hint-placeholder-count="3">
+          <div style="flex:1 1 220px; min-width:0; background:#F8F8F5; padding:clamp(18px,2.2cqi,24px); display:flex; flex-direction:column; gap:9px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#9E5432;">{{ a.step }}</span>
+            <span style="font-weight:700; font-size:17px; letter-spacing:-0.02em;">{{ a.title }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#6B6E72;">{{ a.sub }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px 26px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#43464A;">
+        <sc-for list="{{ guarantees }}" as="g" hint-placeholder-count="4">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.4l3 3L11.5 4" fill="none" stroke="#9E5432" stroke-width="1.8"></path></svg>
+            {{ g }}
+          </span>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="border-bottom:1px solid #16181B; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">04</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">Trajectories and statistics</h2>
+      </div>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,17.5px); line-height:1.65; color:#43464A; max-width:66ch; text-wrap:pretty;">Because <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">rogrep</code> captures Git and GitHub operations as part of the record, it can rank which conversation actually produced a branch, commit or pull request — prioritizing the conversation that created it, ranking matching Git operations above text-only mentions, then printing the exact <code style="font-family:'JetBrains Mono',monospace; font-size:0.92em;">rogrep show</code> command to inspect the turn.</p>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <div style="flex:1 1 340px; min-width:0; background:#080B10; padding:16px 15px; overflow-x:auto;">
+          <sc-for list="{{ trajTerminal }}" as="ln" hint-placeholder-count="5">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.8; min-height:1.8em; white-space:nowrap; color:{{ ln.c }}">{{ ln.t }}</div>
+          </sc-for>
+        </div>
+        <div style="flex:1 1 300px; min-width:0; background:#F8F8F5; padding:clamp(18px,2.2cqi,24px); display:flex; flex-direction:column; gap:12px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#9E5432;">Deterministic statistics</span>
+          <p style="margin:0; font-size:14.5px; line-height:1.65; color:#43464A;">Statistics come from SQLite over the same normalized record, so they are repeatable and computed without asking a model to interpret anything.</p>
+          <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#16181B; background:#EDEDE9; padding:10px 11px; display:block; overflow-x:auto; white-space:nowrap;">$ rogrep stats top --by tokens --since 7d</code>
+          <p style="margin:0; font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.6; color:#8C8C84;">{{ statsNote }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="benchmark" style="border-bottom:1px solid #16181B; background:#EDEDE9; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">05</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">Speed, measured</h2>
+      </div>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,17.5px); line-height:1.65; color:#43464A; max-width:66ch; text-wrap:pretty;">Every command auto-syncs before it answers. That is only viable because a no-op sweep costs 16ms — which is the reason these numbers matter more than the cold-index figure.</p>
+
+      <div style="border:1px solid #16181B; overflow-x:auto;">
+        <div style="min-width:520px;">
+          <div style="display:flex; background:#16181B; color:#F2F2EF; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase;">
+            <span style="flex:2 1 200px; padding:11px 14px;">Metric</span>
+            <span style="flex:1 1 90px; padding:11px 14px; text-align:right;">rogrep</span>
+            <span style="flex:1 1 90px; padding:11px 14px; text-align:right;">cass</span>
+            <span style="flex:0 0 88px; padding:11px 14px; text-align:right;">Δ</span>
+          </div>
+          <sc-for list="{{ bench }}" as="b" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; background:#F8F8F5; border-bottom:1px solid #D3D3CD; font-family:'JetBrains Mono',monospace; font-size:12.5px;">
+              <span style="flex:2 1 200px; padding:12px 14px; color:#43464A;">{{ b.m }}</span>
+              <span style="flex:1 1 90px; padding:12px 14px; text-align:right; font-weight:500; color:#16181B;">{{ b.a }}</span>
+              <span style="flex:1 1 90px; padding:12px 14px; text-align:right; color:#8C8C84;">{{ b.b }}</span>
+              <span style="flex:0 0 88px; padding:12px 14px; text-align:right; font-weight:500; color:#9E5432;">{{ b.d }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <p style="margin:0; font-size:13px; line-height:1.65; color:#6B6E72; max-width:78ch;">cass 0.6.22 built from source, default lexical-only config. Both tools indexed the same real ~730MB / ~275-session corpus into isolated throwaway data dirs. Single-machine July 2026 snapshot; measures indexing cost, refresh, footprint and latency — not relevance quality. Discovery semantics differ, and ~10–15ms of each search is process startup. <a href="https://github.com/agentpmhq/rogrep/blob/main/docs/benchmarks/2026-07-cass.md" style="color:#16181B; border-bottom:1px solid #9E5432;">Full methodology ↗</a></p>
+    </div>
+  </section>
+
+  <section style="border-bottom:1px solid #16181B; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(20px,2.6cqi,32px);">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">06</span>
+        <h2 style="margin:0; font-weight:700; font-size:clamp(25px,3.4cqi,40px); line-height:1.05; letter-spacing:-0.035em;">Built in the open</h2>
+      </div>
+      <p style="margin:0; font-size:clamp(15px,1.7cqi,17.5px); line-height:1.65; color:#43464A; max-width:66ch; text-wrap:pretty;">Apache-2.0, and staying that way. Development happens in public: issues, discussions and review all live on the repository.</p>
+
+      <sc-if value="{{ hasActivity }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <sc-for list="{{ activity }}" as="a" hint-placeholder-count="2">
+          <div style="flex:1 1 160px; min-width:0; background:#F8F8F5; padding:15px 16px; display:flex; flex-direction:column; gap:5px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:clamp(20px,2.4cqi,27px); font-weight:500; color:#16181B; letter-spacing:-0.02em;">{{ a.v }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase; color:#8C8C84;">{{ a.k }}</span>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <div style="display:flex; flex-wrap:wrap; gap:1px; background:#D3D3CD; border:1px solid #D3D3CD;">
+        <sc-for list="{{ resources }}" as="r" hint-placeholder-count="4">
+          <a href="{{ r.href }}" style="flex:1 1 240px; min-width:0; background:#F8F8F5; padding:clamp(18px,2.2cqi,24px); display:flex; flex-direction:column; gap:8px;" style-hover="background:#F2F2EF;">
+            <span style="font-weight:700; font-size:17px; letter-spacing:-0.02em;">{{ r.title }}</span>
+            <span style="font-size:13.5px; line-height:1.6; color:#55585C;">{{ r.body }}</span>
+            <span style="margin-top:auto; padding-top:6px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#9E5432;">{{ r.link }}</span>
+          </a>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding-top:4px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#8C8C84;">Indexes</span>
+        <sc-for list="{{ providers }}" as="p" hint-placeholder-count="6">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#43464A; border:1px solid #D3D3CD; padding:6px 10px;">{{ p }}</span>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#16181B; color:#F2F2EF; padding:clamp(34px,4.6cqi,60px) clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-wrap:wrap; gap:24px; align-items:center; justify-content:space-between;">
+      <p style="margin:0; font-size:clamp(17px,2cqi,22px); line-height:1.5; max-width:52ch; text-wrap:pretty;"><code style="font-family:'JetBrains Mono',monospace; font-size:0.9em;">rogrep</code> is built and maintained by <a href="https://ironscribe.co" style="color:#C97A4F; border-bottom:1px solid #C97A4F;">Iron Scribe</a>. When the same history needs to cross people and weeks, that's AgentPM.</p>
+      <a href="https://agentpm.dev" style="flex:none; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:500; color:#16181B; background:#F2F2EF; padding:14px 18px;" style-hover="background:#C97A4F; color:#16181B;">About AgentPM →</a>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid #16181B; background:#F2F2EF;">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-wrap:wrap; gap:clamp(24px,3cqi,48px); padding:clamp(26px,3.4cqi,42px) clamp(20px,3cqi,40px);">
+      <div style="flex:1 1 260px; min-width:0; display:flex; flex-direction:column; gap:11px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700; letter-spacing:-0.02em;">rogrep</span>
+        <p style="margin:0; font-size:13.5px; line-height:1.6; color:#55585C; max-width:40ch;">An open-source CLI and TUI for searching and analyzing coding-agent session history. Apache-2.0.</p>
+      </div>
+      <div style="flex:1 1 150px; min-width:0; display:flex; flex-direction:column; gap:9px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#43464A;">
+        <span style="font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#8C8C84;">Project</span>
+        <a href="https://github.com/agentpmhq/rogrep">repository ↗</a>
+        <a href="https://github.com/agentpmhq/rogrep#readme">documentation ↗</a>
+        <a href="https://github.com/agentpmhq/rogrep/issues">issues ↗</a>
+        <a href="https://github.com/agentpmhq/rogrep/blob/main/LICENSE">Apache-2.0 ↗</a>
+      </div>
+      <div style="flex:1 1 150px; min-width:0; display:flex; flex-direction:column; gap:9px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#43464A;">
+        <span style="font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#8C8C84;">Iron Scribe</span>
+        <a href="https://ironscribe.co">ironscribe.co ↗</a>
+        <a href="https://agentpm.dev">agentpm ↗</a>
+        <a href="https://ironscribe.co/services">services</a>
+        <a href="mailto:hello@ironscribe.co">hello@ironscribe.co</a>
+      </div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px 24px; justify-content:space-between; max-width:1100px; margin:0 auto; padding:13px clamp(20px,3cqi,40px); border-top:1px solid #D3D3CD; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#8C8C84;">
+      <span>© 2026 Iron Scribe</span>
+      <span>rogrep is Apache-2.0 · AgentPM is a managed product</span>
+    </div>
+  </footer>
+
+  <div style="background:#E4E4DF; border-top:1px solid #C9C4BB; padding:16px clamp(20px,3cqi,40px);">
+    <div style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:7px; font-family:'JetBrains Mono',monospace; font-size:11.5px; line-height:1.65; color:#6B6E72;">
+      <span style="font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#9E5432;">// build notes — not part of the design</span>
+      <span>// star count, version, contributor and commit figures are slots. Wire to the GitHub API or a build-time fetch; do not hard-code. The activity strip hides itself until at least one real figure is supplied.</span>
+      <span>// section 04 stats output is an illustrative shape. Replace with a real `rogrep stats` paste before launch.</span>
+      <span>// confirm `cargo install rogrep` is published to crates.io before it leads section 01. If not, promote the source build and delete the crates row.</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280},&quot;leadInstall&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cargo&quot;,&quot;brew&quot;,&quot;source&quot;],&quot;default&quot;:&quot;cargo&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Install&quot;,&quot;label&quot;:&quot;Which install leads&quot;},&quot;version&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;v0.1.0&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Repo facts&quot;},&quot;stars&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;—&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Repo facts&quot;},&quot;contributors&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;—&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Repo facts&quot;},&quot;commits&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;—&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Repo facts&quot;},&quot;lastCommit&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;—&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Repo facts&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const version = p.version ?? "v0.1.0";
+    const stars = p.stars ?? "—";
+    const lead = p.leadInstall ?? "cargo";
+
+    const cargoRow = { label: "cargo", note: "Rust 1.85+", lines: ["cargo install rogrep"] };
+    const brewRow = { label: "homebrew", note: "macOS · Linux", lines: ["brew install agentpmhq/tap/rogrep"] };
+    const srcRow = { label: "from source", note: "builds to ~/.local/bin", lines: ["git clone https://github.com/agentpmhq/rogrep", "cd rogrep", "cargo install --path crates/rogrep"] };
+
+    const real = (v) => typeof v === "string" && v.trim() && v.trim() !== "—";
+    const activity = [
+      { v: stars, k: "stars" },
+      { v: p.contributors, k: "contributors" },
+      { v: p.commits, k: "commits" },
+      { v: p.lastCommit, k: "last commit" }
+    ].filter(a => real(a.v));
+
+    const order = lead === "brew" ? [brewRow, cargoRow, srcRow]
+      : lead === "source" ? [srcRow, cargoRow, brewRow]
+      : [cargoRow, brewRow, srcRow];
+
+    return {
+      version, stars,
+      leadCommand: order[0].lines[0],
+      installs: order,
+
+      repoMeta: [
+        { k: "License", v: "Apache-2.0" },
+        { k: "Language", v: "Rust" },
+        { k: "Version", v: version },
+        { k: "Platforms", v: "macOS · Linux" },
+        { k: "Account", v: "none" }
+      ],
+
+      firstRun: [
+        { cmd: "rogrep sync", note: "build the index" },
+        { cmd: "rogrep doctor", note: "check provider coverage" },
+        { cmd: "rogrep tui", note: "browse interactively" }
+      ],
+
+      heroTerminal: [
+        { t: "$ rogrep x \"fix the parser\"", c: "#B9FBE9" },
+        { t: "3 conversations · 11 exchanges · 21ms", c: "#7F8A99" },
+        { t: "", c: "#7F8A99" },
+        { t: "› claude-code · agentpm · 2d ago", c: "#48E6BF" },
+        { t: "  \"fix the parser for Codex rollouts\"", c: "#E8EDF4" },
+        { t: "› codex · rogrep · 6d ago", c: "#48E6BF" },
+        { t: "  incremental parser invariants", c: "#E8EDF4" }
+      ],
+
+      questions: [
+        { ask: "What did the agent do about this, last time?", cmd: "rogrep x \"fix the parser\"", body: "One prompt and everything that followed it, whichever model answered — not just the message that matched." },
+        { ask: "Which commands failed, and in what context?", cmd: "rogrep tool_status:failed tool_cmd:cargo", body: "Known key:value facets filter evidence; unknown colon tokens stay searchable text." },
+        { ask: "How did this pull request actually happen?", cmd: "rogrep trajectory --pr 48", body: "Ranked by captured Git and GitHub operations, not by keyword luck." }
+      ],
+
+      arch: [
+        { step: "reads", title: "Session stores", sub: "provider files, untouched" },
+        { step: "normalizes", title: "One record", sub: "conv · exch · turn" },
+        { step: "writes", title: "Local index", sub: "tantivy + sqlite" }
+      ],
+      guarantees: ["no server", "no account", "no telemetry", "derived data is rebuildable"],
+
+      trajTerminal: [
+        { t: "$ rogrep trajectory --pr 48", c: "#B9FBE9" },
+        { t: "", c: "#7F8A99" },
+        { t: "1. codex · rogrep · created PR #48    score 0.94", c: "#E8EDF4" },
+        { t: "2. claude-code · rogrep · 3 commits   score 0.61", c: "#E8EDF4" },
+        { t: "", c: "#7F8A99" },
+        { t: "  rogrep show 4f2a1c --turn 12", c: "#48E6BF" }
+      ],
+      statsNote: "// illustrative shape — replace with a real paste",
+
+      bench: [
+        { m: "Cold full index", a: "20.9 s", b: "416.4 s", d: "19.9×" },
+        { m: "Warm no-op refresh", a: "16 ms", b: "3,728 ms", d: "~230×" },
+        { m: "Data dir on disk", a: "273 MB", b: "2.2 GB", d: "8×" },
+        { m: "Search latency, median", a: "21–36 ms", b: "33–101 ms", d: "1.2–4.2×" }
+      ],
+
+      // Only real figures earn a cell. Four em-dashes side by side read as a
+      // failed fetch, which is worse than an absent strip.
+      activity: activity,
+      hasActivity: activity.length > 0,
+
+      resources: [
+        { title: "Documentation", body: "Query syntax, provider coverage, configuration and the full command reference.", link: "docs ↗", href: "https://github.com/agentpmhq/rogrep#readme" },
+        { title: "Contributing", body: "Add a provider, sharpen retrieval, improve the TUI, or test the incremental parsing invariants.", link: "CONTRIBUTING.md ↗", href: "https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md" },
+        { title: "Discussions", body: "Ask a question or report a problem in discussions and issues.", link: "discussions ↗", href: "https://github.com/agentpmhq/rogrep/discussions" },
+        { title: "Architecture", body: "How normalization, indexing and the workspace layout actually work.", link: "repository ↗", href: "https://github.com/agentpmhq/rogrep" }
+      ],
+
+      providers: ["Claude Code", "Codex", "Cursor", "Grok", "Hermes", "OpenCode"]
+    };
+  }
+}
+</script>
+</body>
+</html>
