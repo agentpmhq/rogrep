@@ -24,4 +24,10 @@ Commit `design_handoff_rogrep/` to the branch first, then run these as **two sep
 >
 > Wire stars/contributors/commits/last-commit as a build-time GitHub API fetch per Task 5. Every call in try/catch, falling back to omitting the value — a rate-limited API must not fail the build or render a zero. Hide the whole activity strip when no figure resolves.
 >
+> One existing bug while you're in this file: every `--` in command text renders as `/-` on the deployed page (`cargo install /-path`, `trajectory /-pr`, `show /-turn`). Find whether it's the source string or a display transform and fix it — the install command as shown does not work when pasted.
+>
 > Keep the cass benchmark exactly as it is, including all caveats.
+
+## Session C — deploy
+
+> Read `design_handoff_rogrep/ROGREP_LANDER.md` "Deploying". Verify the lander locally at the rogrep route, then build the Pages export and confirm the four things in that checklist before pushing. Report what the export actually produced — I want to see the nav, the install rows and the activity strip described back to me before it goes live.

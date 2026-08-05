@@ -114,6 +114,21 @@ Better still: paste a real `rogrep stats` run and delete the marker. Redact proj
 - The AgentPM bridge band stays, at the bottom, one link, no signup.
 - Radius 0, two fonts, container queries, terminal wells as the only dark surfaces.
 
+## Deploying
+
+The site at agentpmhq.github.io/rogrep is a GitHub Pages publish of a static export, so "deploy" means: land the code, build the export, push the artifact. Nothing here reaches production until that build runs.
+
+Before pushing, verify the export — not the dev server. A static export drops anything that needs a server, so a page that looks right at `localhost:3045` can still ship broken:
+
+1. **The build-time GitHub fetch actually ran.** Grep the built HTML for the star count. If it's absent, the fetch failed and the strip correctly hid itself — but you want to know that before it's live, not after.
+2. **`basePath` is right.** Pages serves from `/rogrep/`, so relative asset paths resolve differently than at the dev root. Fonts and the GitHub mark are the usual casualties.
+3. **No `CompanyNav` in the output.** Grep the built HTML for `services` and `company` as nav items. If they appear, Task 1's layout separation didn't take effect in the export.
+4. **Install commands are copy-pasteable.** Copy each one out of the built page and run it. This is where the `--` → `/-` bug shows itself.
+
+Then add the weekly `schedule:` trigger from Task 5 so the activity figures refresh without a code change.
+
+Push to a preview or a branch deploy first if the workflow supports it. If it only publishes from the default branch, that's fine — but then get eyes on it immediately after the first publish rather than assuming.
+
 ## Traps
 
 - Terminal wells: **one `<div>` per line**, and blank spacer lines need `min-height:1.8em` or they collapse to zero height. The existing `styles.terminalSpacer` already handles this — keep using it.
