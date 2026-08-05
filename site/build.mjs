@@ -32,7 +32,9 @@ async function getStats() {
   const stats = {};
   try {
     const repo = await (await github("")).json();
-    if (Number.isFinite(repo.stargazers_count)) stats.stars = compact(repo.stargazers_count);
+    if (Number.isFinite(repo.stargazers_count) && repo.stargazers_count > 0) {
+      stats.stars = compact(repo.stargazers_count);
+    }
     if (repo.pushed_at) stats.lastCommit = relativeDate(repo.pushed_at);
   } catch (error) {
     console.warn(error.message);
