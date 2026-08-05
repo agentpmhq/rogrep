@@ -6,38 +6,40 @@
     <meta name="description" content="Search and analyze every coding-agent session across Claude Code, Codex, Cursor, Grok, Hermes, and OpenCode.">
     <meta name="theme-color" content="#f2f2ef">
     <link rel="canonical" href="https://agentpmhq.github.io/rogrep/">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=open-source-refresh">
     <title>rogrep — search every coding-agent session</title>
     <script type="application/ld+json">
       {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"rogrep","codeRepository":"https://github.com/agentpmhq/rogrep","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"Rust","author":{"@type":"Organization","name":"Iron Scribe","url":"https://agentpm.dev/ironscribe"}}
     </script>
-    <script defer src="./site.js"></script>
+    <script id="repo-stats" type="application/json"><!--ROGREP_REPO_STATS--></script>
+    <script defer src="./site.js?v=open-source-refresh"></script>
   </head>
   <body>
     <div class="shell">
-      <header>
-        <nav class="site-nav" aria-label="Company">
-          <a class="wordmark" href="https://agentpm.dev/ironscribe" aria-label="Iron Scribe home">
-            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20"><g fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 2v16M10 2v16M16 2v16" fill="none"/><path d="M2 7h4M8 12h4M14 5h4" fill="none"/></g></svg>
-            <span>Iron Scribe</span>
-          </a>
+      <header class="project-header">
+        <div class="company-strip">
+          <a href="https://agentpm.dev/ironscribe">An Iron Scribe project</a>
+          <div><a href="https://github.com/agentpmhq/rogrep/blob/main/LICENSE">Apache-2.0</a><a href="https://github.com/agentpmhq/rogrep">github ↗</a></div>
+        </div>
+        <nav class="site-nav" aria-label="Rogrep project">
+          <a class="rogrep-wordmark" href="./" aria-label="Rogrep home">rogrep <span>v0.1.0</span></a>
           <div class="nav-links">
-            <a class="active" href="/rogrep/">rogrep</a>
-            <a href="https://agentpm.dev/">agentpm</a>
-            <a href="https://agentpm.dev/ironscribe/services">services</a>
-            <a href="https://agentpm.dev/ironscribe/blog">blog</a>
-            <a href="https://agentpm.dev/ironscribe/company">company</a>
+            <a href="https://github.com/agentpmhq/rogrep#readme">docs</a>
+            <a href="#benchmarks">benchmarks</a>
+            <a href="https://github.com/agentpmhq/rogrep/issues">issues</a>
+            <a href="https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md">contributing</a>
           </div>
-          <a class="nav-cta" href="#install">install rogrep</a>
-          <button class="hamburger" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Menu"><span></span><span></span><span></span></button>
+          <div class="nav-actions">
+            <a class="star-button" href="https://github.com/agentpmhq/rogrep" aria-label="Star rogrep on GitHub"><span class="star-label"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 .6l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L.8 5.8l5-.7L8 .6z" fill="none" stroke="currentColor"/></svg>Star</span><span class="star-count" data-stat="stars" hidden></span></a>
+            <a class="nav-cta" href="#install">install</a>
+            <button class="hamburger" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Menu"><span></span><span></span><span></span></button>
+          </div>
         </nav>
         <div class="mobile-panel" id="mobile-nav" data-open="false">
-          <a class="active" href="/rogrep/">rogrep</a>
-          <a href="https://agentpm.dev/">agentpm</a>
-          <a href="https://agentpm.dev/ironscribe/services">services</a>
-          <a href="https://agentpm.dev/ironscribe/blog">blog</a>
-          <a href="https://agentpm.dev/ironscribe/company">company</a>
-          <a class="mobile-cta" href="#install">install rogrep</a>
+          <a href="https://github.com/agentpmhq/rogrep#readme">docs</a>
+          <a href="#benchmarks">benchmarks</a>
+          <a href="https://github.com/agentpmhq/rogrep/issues">issues</a>
+          <a href="https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md">contributing</a>
         </div>
       </header>
 
@@ -48,18 +50,18 @@
             <h1>rogrep</h1>
             <p class="promise">Search and analyze every coding-agent session.</p>
             <p class="support"><code>rogrep</code> <a class="rule-link" href="https://github.com/agentpmhq/rogrep">supports</a> Claude Code, Codex, Cursor, Grok, Hermes and OpenCode — on macOS and Linux.</p>
+            <div class="lead-install" aria-label="Install from source"><span class="prompt">$</span><code>git clone https://github.com/agentpmhq/rogrep &amp;&amp; cd rogrep &amp;&amp; cargo install --path crates/rogrep</code><span class="caret" aria-hidden="true"></span></div>
           </header>
+
+          <div class="repo-facts" aria-label="Repository facts"><div><span>License</span><strong>Apache-2.0</strong></div><div><span>Language</span><strong>Rust</strong></div><div><span>Version</span><strong>v0.1.0</strong></div><div><span>Platforms</span><strong>macOS · Linux</strong></div><div><span>Account</span><strong>none</strong></div></div>
 
           <section class="section" id="install">
             <h2><span>01</span>Install rogrep</h2>
-            <div class="install-panel">
-              <div class="terminal-bar"><span>Rust 1.85+ · builds to ~/.local/bin</span><button class="copy-button" type="button" data-copy>copy</button></div>
-              <pre class="install-command"><code>git clone https://github.com/agentpmhq/rogrep
-cd rogrep
-cargo install --path crates/rogrep</code></pre>
+            <div class="install-group">
+              <article class="install-row"><div class="install-meta"><strong>from source</strong><span>Rust 1.85+ · builds to ~/.local/bin</span></div><div class="install-code" data-install-command><div><span class="prompt">$</span> git clone https://github.com/agentpmhq/rogrep</div><div><span class="prompt">$</span> cd rogrep</div><div><span class="prompt">$</span> cargo install --path crates/rogrep</div></div><button class="copy-button" type="button" data-copy>copy</button></article>
             </div>
             <p class="body-doc">Paste that in a terminal. Nothing runs as root, no daemon is installed, and no account is created. Then index what is already on disk:</p>
-            <div class="terminal-body first-commands"><div><span class="prompt">$</span> <span class="terminal-ink">rogrep sync</span> <span class="dim"># build the index</span></div><div><span class="prompt">$</span> <span class="terminal-ink">rogrep doctor</span> <span class="dim"># check provider coverage</span></div><div><span class="prompt">$</span> <span class="terminal-ink">rogrep tui</span> <span class="dim"># browse interactively</span></div></div>
+            <div class="first-commands"><div><code><span class="prompt">$</span> rogrep sync</code><span># build the index</span></div><div><code><span class="prompt">$</span> rogrep doctor</code><span># check provider coverage</span></div><div><code><span class="prompt">$</span> rogrep tui</code><span># browse interactively</span></div></div>
             <p class="fine"><code>rogrep</code> is open source under Apache-2.0. Read about other <a class="rule-link" href="https://github.com/agentpmhq/rogrep">installation options</a>.</p>
           </section>
 
@@ -86,18 +88,20 @@ cargo install --path crates/rogrep</code></pre>
             <p class="body-doc">Because <code>rogrep</code> captures Git and GitHub operations as part of the record, it can rank which conversation actually produced a branch, commit or pull request — prioritizing the conversation that created it, ranking matching Git operations above text-only mentions, then printing the exact <code class="inline-code">rogrep show</code> command to inspect the turn.</p>
             <div class="terminal-body"><div><span class="prompt">$</span> rogrep trajectory --pr 48</div><div><span class="muted">1. codex · rogrep · created PR #48&nbsp;&nbsp;&nbsp;</span><span class="prompt">score 0.94</span></div><div><span class="muted">2. claude-code · rogrep · 3 commits&nbsp;&nbsp;</span><span class="prompt">score 0.61</span></div><div class="dim">&nbsp;&nbsp;&nbsp;rogrep show 4f2a1c --turn 12</div></div>
             <p class="body-doc">Statistics come from SQLite over the same normalized record, so they are repeatable and computed without asking a model to interpret anything.</p>
-            <div class="card"><div class="card-command"><span class="accent">$</span> rogrep stats top --by tokens --since 7d</div><div class="table-row"><span>agentpm</span><span>1.42M tok</span></div><div class="table-row"><span>rogrep</span><span>883K tok</span></div><div class="table-row"><span>infra-scripts</span><span>204K tok</span></div><div class="table-row"><span>tool failures</span><span>37</span></div><p class="caption">Illustrative shape of the report — activity, tokens, tool failures, projects and Git operations are all counted the same way. <strong>PLACEHOLDER VALUES — replace with a real paste.</strong></p></div>
+            <div class="command-only"><code><span class="accent">$</span> rogrep stats top --by tokens --since 7d</code><span>// illustrative shape — replace with a real paste</span></div>
           </section>
 
-          <section class="section">
+          <section class="section" id="benchmarks">
             <h2><span>05</span>Speed, measured</h2>
             <p class="body-doc">Every command auto-syncs before it answers. That is only viable because a no-op sweep costs 16ms — which is the reason these numbers matter more than the cold-index figure.</p>
             <div class="card benchmark"><div class="benchmark-head"><span>Metric</span><span>rogrep</span><span>cass</span><span>Δ</span></div><div class="benchmark-row"><span>Cold full index</span><span>20.9 s</span><span>416.4 s</span><span>19.9×</span></div><div class="benchmark-row"><span>Warm no-op refresh</span><span>16 ms</span><span>3,728 ms</span><span>~230×</span></div><div class="benchmark-row"><span>Data dir on disk</span><span>273 MB</span><span>2.2 GB</span><span>8×</span></div><div class="benchmark-row"><span>Search latency, median</span><span>21–36 ms</span><span>33–101 ms</span><span>1.2–4.2×</span></div><p class="method">cass 0.6.22 built from source, default lexical-only config. Both tools indexed the same real ~730MB / ~275-session corpus into isolated throwaway data dirs. Single-machine July 2026 snapshot; measures indexing cost, refresh, footprint and latency — not relevance quality. Discovery semantics differ, and ~10–15ms of each search is process startup. <a class="rule-link" href="https://github.com/agentpmhq/rogrep/blob/main/docs/benchmarks/2026-07-cass.md">Full methodology ↗</a></p></div>
           </section>
 
           <section class="section resources-section">
-            <h2><span>06</span>rogrep resources</h2>
-            <div class="resources"><div><strong>Documentation</strong><p>Query syntax, provider coverage, configuration and the full command reference.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep#readme">docs ↗</a></div><div><strong>Get help</strong><p>Ask a question or report a problem in discussions and issues.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep/discussions">discussions ↗</a></div><div><strong>Contributing</strong><p>Add a provider, sharpen retrieval, improve the TUI, or test the incremental parsing invariants.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md">CONTRIBUTING.md ↗</a></div><div><strong>Architecture</strong><p>How normalization, indexing and the workspace layout actually work.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep">repository ↗</a></div><div><strong>License</strong><p>rogrep is open source under Apache-2.0, and stays that way.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep/blob/main/LICENSE">Apache-2.0 ↗</a></div></div>
+            <h2><span>06</span>Built in the open</h2>
+            <p class="body-doc">Apache-2.0, and staying that way. Development happens in public: issues and review live on the repository.</p>
+            <div class="activity-strip" data-activity hidden><div data-activity-stat="stars" hidden><strong></strong><span>stars</span></div><div data-activity-stat="contributors" hidden><strong></strong><span>contributors</span></div><div data-activity-stat="commits" hidden><strong></strong><span>commits</span></div><div data-activity-stat="lastCommit" hidden><strong></strong><span>last commit</span></div></div>
+            <div class="resources"><div><strong>Documentation</strong><p>Query syntax, provider coverage, configuration and the full command reference.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep#readme">docs ↗</a></div><div><strong>Contributing</strong><p>Add a provider, sharpen retrieval, improve the TUI, or test the incremental parsing invariants.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep/blob/main/CONTRIBUTING.md">CONTRIBUTING.md ↗</a></div><div><strong>Issues</strong><p>Ask a question, report a problem or see what is being worked on.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep/issues">issues ↗</a></div><div><strong>Architecture</strong><p>How normalization, indexing and the workspace layout actually work.</p><a class="rule-link" href="https://github.com/agentpmhq/rogrep">repository ↗</a></div></div>
             <div class="indexes"><span>Indexes</span><span>Claude Code</span><span>Codex</span><span>Cursor</span><span>Grok</span><span>Hermes</span><span>OpenCode</span></div>
           </section>
 
@@ -105,7 +109,7 @@ cargo install --path crates/rogrep</code></pre>
         </div>
       </main>
 
-      <footer class="site-footer"><div class="footer-columns"><div class="footer-column footer-intro"><div class="footer-wordmark">Iron Scribe</div><div class="footer-blurb">Open-source and managed tools for understanding, continuing, and improving work done with coding agents.</div></div><div class="footer-column"><span class="footer-heading">Projects</span><a href="/rogrep/">rogrep</a><a href="https://agentpm.dev/">agentpm</a><a href="https://github.com/agentpmhq/rogrep">rogrep on github ↗</a></div><div class="footer-column"><span class="footer-heading">Company</span><a href="https://agentpm.dev/ironscribe/services">services</a><a href="https://agentpm.dev/ironscribe/blog">blog</a><a href="https://agentpm.dev/ironscribe/company">company</a></div><div class="footer-column"><span class="footer-heading">Elsewhere</span><a href="https://agentpm.dev/">agentpm.dev ↗</a><a href="mailto:hello@ironscribe.co">hello@ironscribe.co</a></div></div><div class="footer-bottom"><span>© 2026 Iron Scribe</span><span>rogrep is Apache-2.0 · AgentPM is a managed product</span></div></footer>
+      <footer class="site-footer"><div class="footer-columns"><div class="footer-column footer-intro"><div class="footer-wordmark">rogrep</div><div class="footer-blurb">Local search, statistics and trajectory analysis over coding-agent sessions.</div><a href="https://github.com/agentpmhq/rogrep/blob/main/LICENSE">Apache-2.0</a></div><div class="footer-column"><span class="footer-heading">Project</span><a href="https://github.com/agentpmhq/rogrep">repository ↗</a><a href="https://github.com/agentpmhq/rogrep#readme">documentation ↗</a><a href="https://github.com/agentpmhq/rogrep/issues">issues ↗</a><a href="https://github.com/agentpmhq/rogrep/blob/main/LICENSE">Apache-2.0 ↗</a></div><div class="footer-column"><span class="footer-heading">Iron Scribe</span><a href="https://agentpm.dev/ironscribe">ironscribe.co ↗</a><a href="https://agentpm.dev/">agentpm ↗</a><a href="https://agentpm.dev/ironscribe/services">services ↗</a><a href="mailto:hello@ironscribe.co">hello@ironscribe.co</a></div></div><div class="footer-bottom"><span>© 2026 Iron Scribe</span><span>Built in the open.</span></div></footer>
     </div>
   </body>
 </html>
