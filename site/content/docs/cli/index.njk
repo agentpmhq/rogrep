@@ -1,0 +1,6 @@
+---
+layout: docs.njk
+title: CLI command index
+description: Generated command reference for every rogrep command.
+---
+<p>These pages come from the binarys Clap <code>--help</code>. The build validates this explicit list against the command tree.</p><div class="command-list">{% for command in generated.cli %}<a href="/docs/cli/{{ command.slug }}/"><code>rogrep {{ command.name }}</code><span>{{ command.summary }}</span></a>{% endfor %}</div>
