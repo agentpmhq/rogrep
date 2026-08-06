@@ -1,0 +1,4 @@
+import markdownIt from "markdown-it";
+import anchor from "markdown-it-anchor";
+import {readFile} from "node:fs/promises";
+export default function(config){const md=markdownIt({html:true,linkify:true,typographer:true}).use(anchor,{permalink:anchor.permalink.linkInsideHeader({symbol:"#",placement:"after",ariaHidden:false})});config.setLibrary("md",md);config.addFilter("markdown",v=>md.render(v||""));config.addFilter("json",v=>JSON.stringify(v).replaceAll("<","\\u003c"));config.addShortcode("canonicalDoc",async p=>md.render(await readFile(p,"utf8")));config.addPassthroughCopy({"site/assets":"assets"});config.addPassthroughCopy({"site/static":"."});config.addWatchTarget("docs/query-syntax.md");config.addWatchTarget("crates/rogrep/assets/SKILL.md");return{dir:{input:"site/content",includes:"../_includes",data:"../_data",output:"_site"},templateFormats:["md","njk"]}}

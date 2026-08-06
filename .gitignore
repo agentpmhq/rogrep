@@ -1,4 +1,8 @@
 /target
+/node_modules
+/site/_data/generated
+/test-results
+/playwright-report
 /_site
 **/*.rs.bk
 *.pending-snap

@@ -1,0 +1,4 @@
+---
+layout: base.njk
+---
+<div class="docs-shell"><aside class="sidebar" aria-label="Documentation">{% for group in nav %}<h2>{{ group.section }}</h2>{% for item in group.items %}<a href="{{ item[1] }}"{% if page.url == item[1] %} aria-current="page"{% endif %}>{{ item[0] }}</a>{% endfor %}{% endfor %}</aside><main id="content" class="doc" data-pagefind-body><nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/docs/">Docs</a>{% if page.url != '/docs/' %} / <span>{{ title }}</span>{% endif %}</nav><article><h1>{{ title }}</h1>{{ content | safe }}</article><div class="doc-end"><a href="https://github.com/agentpmhq/rogrep/edit/main/{{ page.inputPath }}">Edit this page on GitHub!</a></div></main></div>

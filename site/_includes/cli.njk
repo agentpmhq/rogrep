@@ -1,0 +1,12 @@
+---
+layout: docs.njk
+pagination:
+  data: generated.cli
+  size: 1
+  alias: command
+permalink: "docs/cli/{{ command.slug }}/index.html"
+eleventyComputed:
+  title: "rogrep {{ command.name }}"
+  description: "Generated command reference for rogrep {{ command.name }}."
+---
+<p class="lede">{{ command.summary }}</p><p>This syntax is generated from the shipped Clap definition during every site build. Run <code>rogrep {{ command.name }} --help</code> locally for the same reference.</p><h2 id="usage">Usage and options</h2><div class="code"><button class="copy" type="button">Copy</button><pre><code>{{ command.help }}</code></pre></div><h2 id="related">Related documentation</h2><p>See the <a href="/docs/cli/">command index</a>, <a href="/docs/query-syntax/">query syntax</a>, and <a href="/docs/agents/">agent playbook</a>.</p>
