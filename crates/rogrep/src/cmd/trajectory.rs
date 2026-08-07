@@ -54,10 +54,8 @@ struct Entry {
 
 fn facet_query(pairs: &[(&str, String)], project: &Option<String>) -> ParsedQuery {
     let mut q = ParsedQuery {
-        terms: vec![],
-        phrases: vec![],
         facets: pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
-        dates: vec![],
+        ..Default::default()
     };
     if let Some(p) = project {
         q.facets.push(("project".into(), p.clone()));
@@ -111,11 +109,17 @@ pub fn run(args: TrajectoryArgs) -> Result<()> {
         anyhow::bail!("give --pr N, --branch NAME, --commit SHA, or a text query");
     }
 
+    // Date facets in the free-text query bound every candidate search.
+    let tz = jiff::tz::TimeZone::system();
+    let all_dates: Vec<(String, String)> =
+        queries.iter().flat_map(|q| q.dates.iter().cloned()).collect();
+    let ts_range = super::dates::resolve_dates(&all_dates, None, &tz)?;
+
     // Collect candidates in priority order.
     let mut seen = std::collections::HashSet::new();
     let mut candidates: Vec<(String, u32)> = Vec::new(); // (cid, best turn)
     for q in &queries {
-        for m in index.search(q, None, 200)? {
+        for m in index.search(q, ts_range, 200)?.0 {
             if seen.insert(m.conversation_id.clone()) {
                 let turn = m.best.as_ref().map(|b| b.turn_index).unwrap_or(0);
                 candidates.push((m.conversation_id, turn));

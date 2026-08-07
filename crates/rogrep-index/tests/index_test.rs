@@ -49,13 +49,13 @@ fn search_finds_terms_across_conversations() {
     let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
     let (_tmp, index) = build_index(&[&claude, &codex]);
 
-    let hits = index.search(&parse_query("flaky"), None, 100).unwrap();
+    let hits = index.search(&parse_query("flaky"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 2, "both fixtures mention flaky");
 
-    let hits = index.search(&parse_query("tokenizer offsets crlf"), None, 100).unwrap();
+    let hits = index.search(&parse_query("tokenizer offsets crlf"), None, 100).unwrap().0;
     assert!(hits.is_empty() || hits.iter().all(|h| h.match_count == 0) == false);
 
-    let hits = index.search(&parse_query("retry network"), None, 100).unwrap();
+    let hits = index.search(&parse_query("retry network"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].conversation_id, codex.conversation.id.as_str());
     let best = hits[0].best.as_ref().unwrap();
@@ -69,20 +69,20 @@ fn facet_queries_narrow() {
     let (_tmp, index) = build_index(&[&claude, &codex]);
 
     // tool_status:failed → both have a failing tool call.
-    let hits = index.search(&parse_query("tool_status:failed"), None, 100).unwrap();
+    let hits = index.search(&parse_query("tool_status:failed"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 2);
     // tool:bash only in the claude fixture.
-    let hits = index.search(&parse_query("tool:bash"), None, 100).unwrap();
+    let hits = index.search(&parse_query("tool:bash"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].conversation_id, claude.conversation.id.as_str());
     // provider facet.
-    let hits = index.search(&parse_query("provider:codex tool_status:rejected"), None, 100).unwrap();
+    let hits = index.search(&parse_query("provider:codex tool_status:rejected"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 1);
     // tool_cmd from shell parsing (claude's Bash and codex's exec_command
     // both ran cargo).
-    let hits = index.search(&parse_query("tool_cmd:cargo"), None, 100).unwrap();
+    let hits = index.search(&parse_query("tool_cmd:cargo"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 2);
-    let hits = index.search(&parse_query("tool_cmd:rg"), None, 100).unwrap();
+    let hits = index.search(&parse_query("tool_cmd:rg"), None, 100).unwrap().0;
     assert_eq!(hits.len(), 1, "only codex ran rg");
 }
 
@@ -90,9 +90,9 @@ fn facet_queries_narrow() {
 fn phrase_and_literal_colon_queries() {
     let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
     let (_tmp, index) = build_index(&[&claude]);
-    let hits = index.search(&parse_query("\"offsets drift on crlf\""), None, 100).unwrap();
+    let hits = index.search(&parse_query("\"offsets drift on crlf\""), None, 100).unwrap().0;
     assert_eq!(hits.len(), 1);
-    let hits = index.search(&parse_query("\"drift crlf on\""), None, 100).unwrap();
+    let hits = index.search(&parse_query("\"drift crlf on\""), None, 100).unwrap().0;
     assert!(hits.is_empty(), "phrase order matters");
 }
 
@@ -103,21 +103,123 @@ fn find_three_tiers() {
     let (_tmp, index) = build_index(&[&claude]);
 
     // Strict: both terms in one turn.
-    let r = index.find(&cid, &parse_query("offsets drift"), 50).unwrap();
+    let r = index.find(&cid, &parse_query("offsets drift"), None, 50).unwrap();
     assert_eq!(r.total_turn_hits, 1);
     assert!(r.turn_hits[0].excerpt.to_lowercase().contains("offsets drift"));
 
     // Passage: terms in different turns of the same exchange ("parser" only
     // in the user prompt, "crlf" only in the closing assistant turn).
-    let r = index.find(&cid, &parse_query("parser crlf"), 50).unwrap();
+    let r = index.find(&cid, &parse_query("parser crlf"), None, 50).unwrap();
     assert_eq!(r.total_turn_hits, 0);
     assert_eq!(r.passage_exchanges, vec![0], "both in exchange 0");
 
     // Per-term counts always present.
-    let r = index.find(&cid, &parse_query("flaky nonexistentterm"), 50).unwrap();
+    let r = index.find(&cid, &parse_query("flaky nonexistentterm"), None, 50).unwrap();
     let counts: std::collections::HashMap<_, _> = r.term_counts.iter().cloned().collect();
     assert!(counts["flaky"] > 0);
     assert_eq!(counts["nonexistentterm"], 0);
+}
+
+#[test]
+fn regex_queries_match_across_token_boundaries() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
+    let (_tmp, index) = build_index(&[&claude, &codex]);
+
+    // Case-sensitive by default.
+    let hits = index.search(&parse_query("/flaky/"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2);
+    let hits = index.search(&parse_query("/FLAKY/"), None, 100).unwrap().0;
+    assert!(hits.is_empty(), "regexes are case-sensitive");
+    let hits = index.search(&parse_query("/(?i)FLAKY/"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2, "(?i) opts into case-insensitivity");
+
+    // Patterns cross tokenizer boundaries (whitespace via \s, alternation)
+    // where a single term query cannot.
+    let hits = index.search(&parse_query(r"/offsets\s+drift/"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    let best = hits[0].best.as_ref().unwrap();
+    assert!(!best.highlights.is_empty(), "regex matches highlight");
+
+    // Mixed regex + facet narrows.
+    let hits = index
+        .search(&parse_query("/retry|drift/ provider:codex"), None, 100)
+        .unwrap()
+        .0;
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].conversation_id, codex.conversation.id.as_str());
+
+    // Invalid pattern surfaces a clear error.
+    let err = index.search(&parse_query("/re(try/"), None, 100).unwrap_err();
+    assert!(err.to_string().contains("invalid regex /re(try/"));
+}
+
+#[test]
+fn pure_regex_queries_respect_default_scope() {
+    let judge = parse_bytes(AgentKind::Codex, "judge.jsonl", &fixture("codex/auto_review.jsonl"), None);
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/edge_cases.jsonl"), None);
+    let (_tmp, index) = build_index(&[&judge, &claude]);
+
+    // The AllQuery fallback must not leak auxiliary sessions or invisible
+    // turns into corpus results.
+    let hits = index.search(&parse_query("/zebrajudge/"), None, 100).unwrap().0;
+    assert!(hits.is_empty(), "auxiliary leaked through regex path: {hits:?}");
+    let hits = index.search(&parse_query("/injected reminder/"), None, 100).unwrap().0;
+    assert!(hits.is_empty(), "invisible turn leaked through regex path: {hits:?}");
+
+    // But find still greps everything.
+    let r = index
+        .find(judge.conversation.id.as_str(), &parse_query("/zebra[a-z]+/"), None, 10)
+        .unwrap();
+    assert_eq!(r.total_turn_hits, 1);
+}
+
+#[test]
+fn regex_facet_values_match_indexed_vocabulary() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    let codex = parse_bytes(AgentKind::Codex, "b.jsonl", &fixture("codex/session.jsonl"), None);
+    let (_tmp, index) = build_index(&[&claude, &codex]);
+
+    // Anchored regex over turn-facet tokens: tool_cmd of cargo or rg.
+    let hits = index.search(&parse_query("tool_cmd:/cargo|rg/"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 2);
+    let hits = index.search(&parse_query("tool_cmd:/r./"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1, "anchored: matches rg, not cargo");
+    // Metadata field regex.
+    let hits = index.search(&parse_query("flaky provider:/cod.x/"), None, 100).unwrap().0;
+    assert_eq!(hits.len(), 1);
+}
+
+#[test]
+fn find_regex_needles_participate_in_tiers() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    let cid = claude.conversation.id.as_str().to_string();
+    let (_tmp, index) = build_index(&[&claude]);
+
+    // Passage tier: term and regex in different turns of one exchange (the
+    // closing turn says "CRLF", so the regex needs its (?i) flag).
+    let r = index.find(&cid, &parse_query("parser /(?i)crlf/"), None, 50).unwrap();
+    assert_eq!(r.total_turn_hits, 0);
+    assert_eq!(r.passage_exchanges, vec![0]);
+
+    // Per-needle counts include the regex, labeled /pattern/.
+    let counts: std::collections::HashMap<_, _> = r.term_counts.iter().cloned().collect();
+    assert!(counts["parser"] > 0);
+    assert!(counts["/(?i)crlf/"] > 0);
+}
+
+#[test]
+fn subagent_facet_filters_on_origin() {
+    let claude = parse_bytes(AgentKind::Claude, "a.jsonl", &fixture("claude/basic_session.jsonl"), None);
+    assert_eq!(claude.conversation.origin, rogrep_model::Origin::Interactive);
+    let (_tmp, index) = build_index(&[&claude]);
+
+    let hits = index.search(&parse_query("flaky subagent:true"), None, 10).unwrap().0;
+    assert!(hits.is_empty(), "interactive session is not a subagent");
+    let hits = index.search(&parse_query("flaky subagent:false"), None, 10).unwrap().0;
+    assert_eq!(hits.len(), 1);
+    let hits = index.search(&parse_query("flaky is:subagent"), None, 10).unwrap().0;
+    assert!(hits.is_empty());
 }
 
 #[test]
@@ -154,10 +256,10 @@ fn tail_refresh_replaces_open_exchange() {
     // No duplicate docs: doc_count == turns in extended file.
     let expected = full.conversation.turns.len() as u64 + 1;
     assert_eq!(index.doc_count().unwrap(), expected);
-    let hits = index.search(&parse_query("zebra"), None, 10).unwrap();
+    let hits = index.search(&parse_query("zebra"), None, 10).unwrap().0;
     assert_eq!(hits.len(), 1);
     // The re-added tail keeps content searchable exactly once.
-    let hits = index.search(&parse_query("ship"), None, 10).unwrap();
+    let hits = index.search(&parse_query("ship"), None, 10).unwrap().0;
     assert_eq!(hits[0].match_count, 1);
 }
 
@@ -177,10 +279,10 @@ fn date_range_filters() {
     let (_tmp, index) = build_index(&[&claude]);
     // Fixture is 2026-07-01.
     let july = (1_782_864_000_000i64, 1_782_950_400_000i64);
-    let hits = index.search(&parse_query("flaky"), Some(july), 10).unwrap();
+    let hits = index.search(&parse_query("flaky"), Some(july), 10).unwrap().0;
     assert_eq!(hits.len(), 1);
     let jan = (1_767_225_600_000i64, 1_767_312_000_000i64);
-    let hits = index.search(&parse_query("flaky"), Some(jan), 10).unwrap();
+    let hits = index.search(&parse_query("flaky"), Some(jan), 10).unwrap().0;
     assert!(hits.is_empty());
 }
 
@@ -192,19 +294,19 @@ fn injected_context_excluded_from_corpus_search_but_findable() {
 
     // The fixture's injected reminder and IDE attachment are invisible turns.
     // Corpus search must not surface conversations through them…
-    let hits = index.search(&parse_query("injected reminder"), None, 10).unwrap();
+    let hits = index.search(&parse_query("injected reminder"), None, 10).unwrap().0;
     assert!(hits.is_empty(), "injected context leaked into corpus search: {hits:?}");
-    let hits = index.search(&parse_query("broken"), None, 10).unwrap();
+    let hits = index.search(&parse_query("broken"), None, 10).unwrap().0;
     assert!(hits.is_empty(), "synthetic attachment leaked into corpus search: {hits:?}");
 
     // …but visible content still matches…
-    let hits = index.search(&parse_query("directory work"), None, 10).unwrap();
+    let hits = index.search(&parse_query("directory work"), None, 10).unwrap().0;
     assert_eq!(hits.len(), 1);
 
     // …and conversation-scoped find greps EVERYTHING, including context.
-    let r = index.find(&cid, &parse_query("injected reminder"), 10).unwrap();
+    let r = index.find(&cid, &parse_query("injected reminder"), None, 10).unwrap();
     assert_eq!(r.total_turn_hits, 1, "find must keep grep-everything semantics");
-    let r = index.find(&cid, &parse_query("broken"), 10).unwrap();
+    let r = index.find(&cid, &parse_query("broken"), None, 10).unwrap();
     assert_eq!(r.total_turn_hits, 1);
 }
 
@@ -215,14 +317,14 @@ fn auxiliary_sessions_excluded_from_corpus_search() {
     let (_tmp, index) = build_index(&[&judge]);
 
     // Default corpus search never surfaces the judge session…
-    let hits = index.search(&parse_query("zebrajudge"), None, 10).unwrap();
+    let hits = index.search(&parse_query("zebrajudge"), None, 10).unwrap().0;
     assert!(hits.is_empty(), "auxiliary session leaked into corpus search: {hits:?}");
     // …but an explicit origin facet opts in…
-    let hits = index.search(&parse_query("zebrajudge origin:auxiliary"), None, 10).unwrap();
+    let hits = index.search(&parse_query("zebrajudge origin:auxiliary"), None, 10).unwrap().0;
     assert_eq!(hits.len(), 1);
     // …and conversation-scoped find still greps it.
     let r = index
-        .find(judge.conversation.id.as_str(), &parse_query("zebrajudge"), 10)
+        .find(judge.conversation.id.as_str(), &parse_query("zebrajudge"), None, 10)
         .unwrap();
     assert_eq!(r.total_turn_hits, 1);
 }

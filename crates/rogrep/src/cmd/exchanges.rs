@@ -53,16 +53,19 @@ pub fn run(args: ExchangesArgs) -> Result<()> {
     let project = super::search::resolve_project_key(&args.project, &args.cwd);
 
     // Text/facet query narrows to exchanges containing matching turns.
+    // Date facets in the query constrain the SQL listing even when the
+    // query has no text (e.g. `rogrep x since:7d`).
     let raw_query = args.query.join(" ");
-    let allowed: Option<std::collections::HashSet<(String, u32)>> = if raw_query.trim().is_empty() {
+    let mut parsed = parse_query(&raw_query);
+    let ts_range = super::dates::resolve_dates(&parsed.dates, since, &tz)?;
+    let allowed: Option<std::collections::HashSet<(String, u32)>> = if parsed.is_empty() {
         None
     } else {
-        let mut parsed = parse_query(&raw_query);
         if let Some(p) = &project {
             parsed.facets.push(("project".into(), p.clone()));
         }
         let index = super::index::open_search_index(&layout)?;
-        let matches = index.search(&parsed, since.map(|s| (s, i64::MAX)), 2000)?;
+        let (matches, _meta) = index.search(&parsed, ts_range, 2000)?;
         let mut set = std::collections::HashSet::new();
         for m in matches {
             if let Some(best) = &m.best {
@@ -101,9 +104,15 @@ pub fn run(args: ExchangesArgs) -> Result<()> {
         sql.push_str(" AND c.normalized_project = ?");
         params.push(Box::new(p.clone()));
     }
-    if let Some(s) = since {
-        sql.push_str(" AND e.started_at >= ?");
-        params.push(Box::new(s));
+    if let Some((from, to)) = ts_range {
+        if from > i64::MIN {
+            sql.push_str(" AND e.started_at >= ?");
+            params.push(Box::new(from));
+        }
+        if to < i64::MAX {
+            sql.push_str(" AND e.started_at < ?");
+            params.push(Box::new(to));
+        }
     }
     sql.push_str(" ORDER BY e.started_at DESC LIMIT 5000");
 

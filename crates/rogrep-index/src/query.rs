@@ -9,6 +9,11 @@
 //! - unterminated quotes flush as a quoted term so nothing is lost;
 //! - bare text terms are lowercased, trimmed of punctuation, and dropped
 //!   when shorter than 2 chars; quoted phrases survive whole.
+//!
+//! rogrep extension beyond agentpm: an unquoted `/pattern/` token is a
+//! regular expression matched against full turn text (case-sensitive;
+//! `(?i)` opts into case-insensitivity), and a facet value may be
+//! `/pattern/` to regex-match the facet's indexed vocabulary.
 
 use serde::Serialize;
 
@@ -17,6 +22,7 @@ use serde::Serialize;
 pub const KNOWN_FACET_KEYS: &[&str] = &[
     "is",
     "origin",
+    "subagent",
     "provider",
     "agent",
     "model",
@@ -42,7 +48,7 @@ pub const KNOWN_FACET_KEYS: &[&str] = &[
 /// Date-range pseudo-facets resolved to a ts range, not term queries.
 pub const DATE_FACET_KEYS: &[&str] = &["before", "after", "since", "until", "when"];
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct ParsedQuery {
     /// AND'ed bare terms (lowercased).
     pub terms: Vec<String>,
@@ -52,11 +58,16 @@ pub struct ParsedQuery {
     pub facets: Vec<(String, String)>,
     /// Date constraints (key, raw value) for the caller to resolve.
     pub dates: Vec<(String, String)>,
+    /// AND'ed `/pattern/` regexes over full turn text (case preserved).
+    pub regexes: Vec<String>,
 }
 
 impl ParsedQuery {
     pub fn is_empty(&self) -> bool {
-        self.terms.is_empty() && self.phrases.is_empty() && self.facets.is_empty()
+        self.terms.is_empty()
+            && self.phrases.is_empty()
+            && self.facets.is_empty()
+            && self.regexes.is_empty()
     }
 
     /// All text matchers for excerpt highlighting.
@@ -65,6 +76,26 @@ impl ParsedQuery {
         out.extend(self.phrases.clone());
         out
     }
+
+    /// Compile the `/pattern/` regexes. Size-limited so pathological
+    /// patterns error instead of exhausting memory.
+    pub fn compile_regexes(&self) -> anyhow::Result<Vec<regex::Regex>> {
+        self.regexes
+            .iter()
+            .map(|pat| {
+                regex::RegexBuilder::new(pat)
+                    .size_limit(1 << 20)
+                    .build()
+                    .map_err(|e| anyhow::anyhow!("invalid regex /{pat}/: {e}"))
+            })
+            .collect()
+    }
+}
+
+/// The inner pattern of a `/pattern/`-shaped token, if it is one.
+pub fn regex_token(token: &str) -> Option<&str> {
+    let body = token.strip_prefix('/')?.strip_suffix('/')?;
+    (!body.is_empty()).then_some(body)
 }
 
 struct RawToken {
@@ -121,12 +152,7 @@ fn trim_term(term: &str) -> String {
 }
 
 pub fn parse_query(query: &str) -> ParsedQuery {
-    let mut parsed = ParsedQuery {
-        terms: Vec::new(),
-        phrases: Vec::new(),
-        facets: Vec::new(),
-        dates: Vec::new(),
-    };
+    let mut parsed = ParsedQuery::default();
     for token in split_query(query) {
         if token.quoted {
             let t = token.text.trim();
@@ -135,12 +161,22 @@ pub fn parse_query(query: &str) -> ParsedQuery {
             }
             continue;
         }
+        if let Some(pat) = regex_token(&token.text) {
+            parsed.regexes.push(pat.to_string());
+            continue;
+        }
         if let Some((key, value)) = token.text.split_once(':') {
             if let Some(canonical) = is_known_facet_key(key) {
+                // Leading @ is user-name sugar in agentpm; strip everywhere.
                 let value = value.trim();
+                let value = value.strip_prefix('@').unwrap_or(value);
                 if !value.is_empty() {
                     if DATE_FACET_KEYS.contains(&canonical) {
                         parsed.dates.push((canonical.to_string(), value.to_string()));
+                    } else if regex_token(value).is_some() {
+                        // Regex facet values stay verbatim — normalization
+                        // would mangle the pattern.
+                        parsed.facets.push((canonical.to_string(), value.to_string()));
                     } else {
                         parsed
                             .facets
@@ -173,7 +209,7 @@ fn normalize_facet_value(key: &str, value: &str) -> String {
             }
         }
         "tool" | "tool_cmd" | "skill" | "mcp" => v.to_lowercase(),
-        "tool_status" | "content" | "is" | "origin" | "provider" | "agent" | "role" => {
+        "tool_status" | "content" | "is" | "origin" | "subagent" | "provider" | "agent" | "role" => {
             v.to_lowercase().replace('_', "-").replace("--", "-")
         }
         _ => v.to_string(),
@@ -191,11 +227,7 @@ pub fn facet_glob_regex(value: &str) -> Option<String> {
         match c {
             '*' => re.push_str(".*"),
             '?' => re.push('.'),
-            c if "\\.+()[]{}|^$".contains(c) => {
-                re.push('\\');
-                re.push(c);
-            }
-            c => re.push(c),
+            c => re.push_str(&regex::escape(c.encode_utf8(&mut [0; 4]))),
         }
     }
     Some(re)
@@ -271,5 +303,76 @@ mod tests {
         assert_eq!(facet_glob_regex("plain"), None);
         assert_eq!(facet_glob_regex("*.rs"), Some("(?s).*\\.rs".into()));
         assert_eq!(facet_glob_regex("a?c"), Some("(?s)a.c".into()));
+    }
+
+    #[test]
+    fn regex_tokens_extracted_case_preserved() {
+        let q = parse_query("bug /Err.*Kind/ tool:bash");
+        assert_eq!(q.terms, vec!["bug"]);
+        assert_eq!(q.regexes, vec!["Err.*Kind"]);
+        assert_eq!(q.facets, vec![("tool".into(), "bash".into())]);
+        assert!(!q.is_empty());
+    }
+
+    #[test]
+    fn pure_regex_query_is_not_empty() {
+        let q = parse_query("/panic!/");
+        assert_eq!(q.regexes, vec!["panic!"]);
+        assert!(!q.is_empty());
+    }
+
+    #[test]
+    fn escaped_slash_body_preserved() {
+        let q = parse_query(r"/src\/lib/");
+        assert_eq!(q.regexes, vec![r"src\/lib"]);
+        assert!(q.compile_regexes().is_ok());
+    }
+
+    #[test]
+    fn quoted_regex_stays_phrase() {
+        let q = parse_query("\"/x.*y/\"");
+        assert!(q.regexes.is_empty());
+        assert_eq!(q.phrases, vec!["/x.*y/"]);
+    }
+
+    #[test]
+    fn unterminated_or_empty_slashes_stay_terms() {
+        let q = parse_query("/foo // bar/");
+        assert!(q.regexes.is_empty());
+        assert_eq!(q.terms, vec!["/foo", "//", "bar/"]);
+    }
+
+    #[test]
+    fn invalid_regex_fails_at_compile_not_parse() {
+        let q = parse_query("/te(st/");
+        assert_eq!(q.regexes, vec!["te(st"]);
+        let err = q.compile_regexes().unwrap_err();
+        assert!(err.to_string().contains("invalid regex /te(st/"));
+    }
+
+    #[test]
+    fn facet_regex_value_kept_verbatim() {
+        // Normalization would turn `_` into `-`; regex values must not be
+        // touched.
+        let q = parse_query("tool_status:/fail_.*/ file:/.*_test\\.rs/");
+        assert_eq!(
+            q.facets,
+            vec![
+                ("tool_status".into(), "/fail_.*/".into()),
+                ("file".into(), "/.*_test\\.rs/".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn at_prefix_stripped_from_facet_values() {
+        let q = parse_query("project:@rogrep");
+        assert_eq!(q.facets, vec![("project".into(), "rogrep".into())]);
+    }
+
+    #[test]
+    fn subagent_values_normalize() {
+        let q = parse_query("subagent:TRUE");
+        assert_eq!(q.facets, vec![("subagent".into(), "true".into())]);
     }
 }

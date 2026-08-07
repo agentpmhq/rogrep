@@ -6,8 +6,9 @@ use rogrep_store::Store;
 
 #[derive(Args)]
 pub struct SearchArgs {
-    /// Query: bare terms, "quoted phrases", and key:value facets
-    /// (tool:, tool_cmd:, tool_status:, git_pr_num:, file:, project:, …).
+    /// Query: bare terms, "quoted phrases", /regex/ patterns, key:value
+    /// facets (tool:, tool_cmd:, tool_status:, git_pr_num:, file:,
+    /// project:, …), and date facets (since:7d, before:2026-01-01).
     /// A lone rg_… id resolves to `show`; prefix with `--` to search for an
     /// id-shaped token as literal text instead.
     pub query: Vec<String>,
@@ -67,14 +68,20 @@ pub fn run(args: SearchArgs) -> Result<()> {
     }
     let tz = jiff::tz::TimeZone::system();
     let since = super::stats::parse_since(&args.since, &tz)?;
-    let ts_range = since.map(|s| (s, i64::MAX));
+    let ts_range = super::dates::resolve_dates(&parsed.dates, since, &tz)?;
 
     if parsed.is_empty() {
         anyhow::bail!("empty query; try `rogrep ls` for recent conversations");
     }
 
     let index = super::index::open_search_index(&layout)?;
-    let mut matches = index.search(&parsed, ts_range, 500)?;
+    let (mut matches, meta) = index.search(&parsed, ts_range, 500)?;
+    if meta.scan_capped {
+        eprintln!(
+            "note: regex scan capped at {} most-recent turns; add terms or facets to narrow",
+            rogrep_index::REGEX_SCAN_CAP
+        );
+    }
 
     // Recency-decayed rerank.
     if args.sort == "relevance" {
@@ -104,19 +111,20 @@ pub fn run(args: SearchArgs) -> Result<()> {
                 "schema": "rogrep/v1",
                 "command": "search",
                 "query": {"raw": raw_query, "terms": parsed.terms, "phrases": parsed.phrases,
-                          "facets": parsed.facets},
+                          "facets": parsed.facets, "regexes": parsed.regexes},
                 "results": rows,
                 "total": rows.len(),
+                "scan_capped": meta.scan_capped,
             })
         );
         return Ok(());
     }
 
     let paint = crate::color::Painter::auto();
-    if !parsed.facets.is_empty() || !parsed.phrases.is_empty() {
+    if !parsed.facets.is_empty() || !parsed.phrases.is_empty() || !parsed.regexes.is_empty() {
         eprintln!(
-            "parsed: terms={:?} phrases={:?} facets={:?}",
-            parsed.terms, parsed.phrases, parsed.facets
+            "parsed: terms={:?} phrases={:?} facets={:?} regexes={:?}",
+            parsed.terms, parsed.phrases, parsed.facets, parsed.regexes
         );
     }
     if matches.is_empty() {
